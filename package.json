@@ -1,0 +1,32 @@
+{
+  "name": "qb1-type-obj",
+  "version": "1.0.0",
+  "description": "qb1-type-obj",
+  "homepage": "https://github.com/quicbit-js/qb1-type-obj",
+  "url": "https://github.com/quicbit-js/qb1-type-obj/issues",
+  "email": "support@quicbit.com",
+  "repository": "quicbit-js/qb1-type-obj",
+  "devDependencies": {
+    "qb-assign": "^1.0.0",
+    "qb1-obj": "^1.0.0",
+    "qb1-type-base": "^1.0.0",
+    "tape": "^4.6.3",
+    "test-kit": "^2.5.2"
+  },
+  "scripts": {
+    "test": "tape test.js",
+    "cov": "tap --coverage-report=html test.js"
+  },
+  "keywords": [
+    "fast",
+    "compact",
+    "minimal",
+    "qb",
+    "qb1",
+    "quicbit",
+    "data",
+    "performance"
+  ],
+  "author": "Matthew Voss",
+  "license": "ISC"
+}
