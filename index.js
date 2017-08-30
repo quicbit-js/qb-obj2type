@@ -33,26 +33,38 @@ function has_char (s, c, e) {
     return false
 }
 
-// return true if significant user type properties have been set
-function has_props (src) {
-    return !!(src.name || src.desc || src.stip)  // src.name effectively covers tinyname and fullname as well
-}
-function copy_props (src, dst, opt) {
-    set_prop('name', src.name, dst, opt)
-    set_prop('desc', src.desc, dst, opt)
-    if (src.tinyname && src.tinyname !== src.name) {
-        set_prop('tinyname', src.tinyname, dst, opt)
+// return true if basic type properties have been set and will be shown
+function has_props (t, opt) {
+    if (t.name === t.base) {
+        return false
     }
-    if (src.fullname && src.fullname !== src.name) {
-        set_prop('fullname', src.fullname, dst, opt)
-    }
-    set_prop('stip', src.stip, dst, opt)
-    return dst
+    var excl = opt.excl
+    var incl = opt.incl
+
+    // no need to check fullname and tinyname when name is checked
+    return ['name', 'desc', 'stip'].find(function (p) {
+        return t[p] && !(excl && excl[p]) && (!incl || incl[p])
+    })
 }
 
-// sets $-property according to the opt.skip and opt.tnf settings
-function set_prop (n, v, dst, opt) {
-    if (v && !(opt.skip && opt.skip[n])) {
+function copy_type_props (src, dst, opt) {
+    copy_prop('name', src.name, dst, opt)
+    copy_prop('desc', src.desc, dst, opt)
+    if (src.tinyname !== src.name) {
+        copy_prop('tinyname', src.tinyname, dst, opt)
+    }
+    if (src.fullname !== src.name) {
+        copy_prop('fullname', src.fullname, dst, opt)
+    }
+    copy_prop('stip', src.stip, dst, opt)
+}
+
+// sets $-property according to the opt.excl, opt.incl and opt.tnf settings
+function copy_prop (n, v, dst, opt) {
+    if (v == null || opt.excl && opt.excl[n]) {
+        return
+    }
+    if (!opt.incl || opt.incl[n]) {
         if (opt.tnf && opt.tnf !== 'name') {
             n = tbase.PROPS_BY_NAME[n][opt.tnf]
         }
@@ -109,7 +121,6 @@ function collect_names(obj) {
 // '$' prefix and collect custom properties (non-dollar) into 'fields' and 'expr' objects, preparing for type creation.
 // see tests for output examples.
 function obj_by_name(obj, typ_transform) {
-    typ_transform = typ_transform || function (n) { return n }
     // normalize property names.  e.g. $n -> name, $type -> type...
     var dprops = dprops_map()
     var ret = { root: null, byname: {} }                     // put root object and named types into this result
@@ -202,46 +213,67 @@ function obj2typ (o, typ_transform) {
     return ret
 }
 
-function typ2obj (v, typ_transform, opt) {
+function typ2obj (t, typ_transform, opt) {
     var ret
-    switch (v.code) {
+    switch (t.code) {
         case BASE_CODES.arr:
-            if (v.name === v.base) {
-                ret = ['*']                 // base types as array of *
-            }
-            var items = v.items.map(function (item) { return typ2obj(item, typ_transform, opt)})
+            var items = t.items.map(function (item) { return typ2obj(item, typ_transform, opt)})
 
             // return a simple array if there is only one property (the base)
-            if (has_props(v)) {
+            if (has_props(t, opt)) {
                 ret = {}
-                set_prop('base', typ2obj(v.base, typ_transform, opt), ret, opt)
-                copy_props(v, ret, opt)
+                copy_prop('base', typ2obj(t.base, typ_transform, opt), ret, opt)
+                copy_type_props(t, ret, opt)
                 ret.$items = items
             } else {
                 ret = items
             }
             break
         case BASE_CODES.obj: case BASE_CODES.rec:
-            ret = copy_props(v, {}, opt)
-            ret = qbobj.map(v.fields, null, function (k,v) { return typ2obj(v, typ_transform, opt) }, {init: ret})
-            if (v.code === BASE_CODES.obj) {
-                ret = qbobj.map(v.expr, null, function (k,v) { return typ2obj(v, typ_transform, opt) }, {init: ret})
+            ret = {}
+            if (t.name !== t.base) {
+                copy_type_props(t, ret, opt)
+            }
+            qbobj.map(t.fields, null, function (k,v) { return typ2obj(v, typ_transform, opt) }, {init: ret})
+            if (t.code === BASE_CODES.obj) {
+                qbobj.map(t.expr, null, function (k,v) { return typ2obj(v, typ_transform, opt) }, {init: ret})
             }
             break
+/*
+        [ null,  '*',       'any',     'Represents any value or type.  For example, [*] is an array of anything' ],
+            [ 'a',   'arr',     'array',   'Array of values matching types in a *cycle* (also see multi type).  [str] is an array of strings while [str, int] is an alternating array of [str, int, str, int, ...]' ],
+            [ 'X',   'blb',     'blob',    'A sequence of bytes' ],
+            [ 'b',   'boo',     'boolean', 'A true or false value.  Also can be a 0 or non-zero byte' ],
+            [ 'x',   'byt',     'byte',    'An integer in range 0..255'   ],
+            [ 'd',   'dec',     'decimal', 'An unbounded base-10 number (range ~~)' ],
+            [ 'f',   'flt',     'float',   'An unbounded base-2 number (range ~~)' ],
+            [ 'i',   'int',     'integer', 'An unbounded integer (range ..)' ],
+            [ 'm',   'mul',     'multi',   'A set of possible types in the form t1|t2|t3, (also see array cycling types)'   ],
+            [ 'n',   'num',     'number',  'Any rational number including decimals, floats, and integers' ],
+            [ 'o',   'obj',     'object',  'An object with flexible keys and flexible or fixed types which may be constrained using *-expressions'  ],   //  values must be as key/value pairs and the order in the value is the only order known.
+            [ 'r',   'rec',     'record',  'An object with fixed keys and types such as { field1: str, field2: [int] }' ],   //  order is known so values can be without keys (in order) or with keys (in any order)
+            [ 's',   'str',     'string',  'A string of unicode characters (code points in range 0..1114111)'  ],   // (1-3 chained bytes, 7-21 bits)
+            [ 't',   'typ',     'type',    'When type is used as a value, it represents of of the types in this list or any referenceable or registered type'  ],
+            [ 'F',   'fal',     'false',   'False boolean value' ],
+            [ 'N',   'nul',     'null',    'A null value which represents "not-set" for most situations' ],
+            [ 'T',   'tru',     'true',    'True boolean value' ],*/
 
-        default:
-            if (typeof v === 'string') {
-                ret = typ_transform(v, opt) || err('unknown type: ' + v)
+        case BASE_CODES['*']:
+        case BASE_CODES.blb: case BASE_CODES.boo: case BASE_CODES.byt: case BASE_CODES.dec:
+        case BASE_CODES.flt: case BASE_CODES.int: case BASE_CODES.mul: case BASE_CODES.num:
+        case BASE_CODES.str: case BASE_CODES.typ: case BASE_CODES.nul:
+        case BASE_CODES.tru: case BASE_CODES.fal:
+            if (t.name === t.base) {
+                ret = t[opt.tnf]            // base types as string
             } else {
-                typeof v.code === 'number' || err('unexpected value: ' + v)
-                if (v.name === v.base) {
-                    ret = v[opt.tnf]            // base types as string
-                } else {
-                    ret = {}
-                    set_prop('base', typ2obj(v.base, typ_transform, opt), ret, opt)
-                    copy_props(v, ret, opt)
-                }
+                ret = {}
+                copy_prop('base', typ2obj(t.base, typ_transform, opt), ret, opt)
+                copy_type_props(t, ret, opt)
             }
+            break;
+        default:
+            typeof t === 'string' || err('unexpected value: ' + t)
+            ret = typ_transform(t, opt) || err('unknown type: ' + t)
     }
     return ret
 }

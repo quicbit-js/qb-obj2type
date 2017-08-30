@@ -201,23 +201,63 @@ test('obj2typ', function (t) {
 test('typ2obj', function (t) {
     t.table_assert(
         [
-            [ 'v',                                                          'transform',                'opt',          'exp'],
-            [ 'string',                                                     {string:'s'},               null,           's' ],
-            [ typbase.create('str'),                                        {},                         null,           'str' ],
-            [ typbase.create({base:'rec', name:'foo', fields:{a:'i'}}),     {i:'i'},                    null,           { $name: 'foo', a: 'i'} ],
-            [ typbase.create({base:'obj', name:'foo', expr:{'a*':'i'}}),    {i:'i'},                    null,           { $name: 'foo', 'a*': 'i' } ],
-            [ typbase.create({base:'arr', name:'foo', items:['i','s']}),    {arr: 'a', i:'i',s:'s'},    null,           { $base: 'a', $name: 'foo', $items: [ 'i', 's' ] } ],
-            [ typbase.create({base:'arr', items:['i','s']}),                {arr: 'a', i:'i',s:'s'},    null,           [ 'i', 's' ] ],
+            [ 'tprops',                                                          'transform',                'opt',          'exp'],
+            [ 'str',                                        {},                         null,           'str' ],
+            [ {base:'rec', name:'foo', fields:{a:'i'}},     {i:'i'},                    null,           { $name: 'foo', a: 'i'} ],
+            [
+                {base:'rec', name:'foo', tinyname: 'fo', fullname: 'fooo', fields:{a:'i'}},
+                {i:'i'},
+                null,
+                { $name: 'foo', $tinyname: 'fo', $fullname: 'fooo', a: 'i' }
+            ],
+            [
+                {base:'rec', name:'foo', tinyname: 'fo', fullname: 'fooo', fields:{a:'i'}},
+                { i:'i' },
+                { tnf: 'tinyname', excl:{tinyname:1} },
+                { $n: 'foo', $fn: 'fooo', a: 'i' }
+            ],
+            [
+                {base:'rec', name:'foo', tinyname: 'fo', fullname: 'fooo', fields:{a:'i'}},
+                { i:'i' },
+                { tnf: 'fullname', incl:{name:1} },
+                { $name: 'foo', a: 'i' }
+            ],
+            [
+                {base:'rec', name:'foo', tinyname: 'fo', fullname: 'fooo', fields:{a:'i'}},
+                { i:'i' },
+                { incl:{name:1}, excl:{name:1} },       // exclude overrides include
+                { a: 'i' }
+            ],
+            [ {base:'obj', name:'foo', expr:{'a*':'i'}},    {i:'i'},                    null,           { $name: 'foo', 'a*': 'i' } ],
+            [ {base:'arr', items:['i','s']},                {arr: 'a', i:'i',s:'s'},    null,           [ 'i', 's' ] ],
+            [ {base:'arr', name:'foo', items:['i','s']},    {arr: 'a', i:'i',s:'s'},    null,           { $base: 'a', $name: 'foo', $items: ['i','s']} ],
+            [ {base:'arr', name:'foo', items:['i','s']},    {arr: 'a', i:'i',s:'s'},    {incl:{name:1}},  { $name: 'foo', $items: ['i','s']} ],
+            [ {base:'arr', name:'foo', items:['i','s']},    {arr: 'a', i:'i',s:'s'},    {excl:{name:1}},  [ 'i', 's' ] ],
+            [ {base:'arr', name:'arr'},                     {'*':'*'},    null,                         [ '*' ] ],
+            [ {base:'obj', name:'obj'},                     {'*':'*'},    null,                         {'*':'*'} ],
         ],
-        function (v, transform, opt) {
-            var ret = typobj.typ2obj(v, function (name, opt) {
+        function (tprops, transform, opt) {
+            var type = typbase.create(tprops)
+            var ret = typobj.typ2obj(type, function (name) {
                 return transform[name]
-            })
+            }, opt)
             if (typeof ret === 'object' && !Array.isArray(ret)) {
                 ret = qbobj.map(ret)
             }
             return ret
         }
     )
+})
+
+test('typ2obj simple', function (t) {
+    var simple = Object.keys(CODES).filter(function (name) { return !{ rec: 1, obj: 1, arr: 1 }[name] })
+    simple.forEach(function (name) {
+        var code = CODES[name]
+        var type = typbase.create({base: name, name: 'foo'})
+        var obj = typobj.typ2obj(type, function (n) { return n })
+        var exp = { '$base': name, $name: 'foo' }
+        t.same(obj, exp, t.desc('', [name], exp))
+    })
+    t.end()
 })
 
