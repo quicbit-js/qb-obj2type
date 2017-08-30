@@ -196,21 +196,18 @@ function obj2typ (o, typ_transform) {
 
     var ret = obj_by_name(o, trans)        // reduce/simplify nested structure
 
-    ret.byname = qbobj.map(ret.byname, null, function (n, obj) { return tbase.create(obj) })
+    ret.byname = qbobj.map(ret.byname, null, function (n, props) { return tbase.create(props) })
     if (ret.root.base) { ret.root = tbase.create(ret.root) }
 
     return ret
 }
 
 function typ2obj (v, typ_transform, opt) {
-    if (v == null) {
-        return null
-    }
     var ret
     switch (v.code) {
         case BASE_CODES.arr:
-            if (v.isBase()) {
-                ret = ['*']
+            if (v.name === v.base) {
+                ret = ['*']                 // base types as array of *
             }
             var items = v.items.map(function (item) { return typ2obj(item, typ_transform, opt)})
 
@@ -237,8 +234,8 @@ function typ2obj (v, typ_transform, opt) {
                 ret = typ_transform(v, opt) || err('unknown type: ' + v)
             } else {
                 typeof v.code === 'number' || err('unexpected value: ' + v)
-                if (v.isBase()) {
-                    ret = v[opt.tnf]
+                if (v.name === v.base) {
+                    ret = v[opt.tnf]            // base types as string
                 } else {
                     ret = {}
                     set_prop('base', typ2obj(v.base, typ_transform, opt), ret, opt)

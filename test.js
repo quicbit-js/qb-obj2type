@@ -172,15 +172,27 @@ test('obj_by_name', function (t) {
 test('obj2typ', function (t) {
     t.table_assert(
         [
-            [ 'o',                  'transform',       'exp'],
-            [ {a:'s', b:'i'},       {s:'s',i:'i'},    { base: 'rec', fields: { a: 's', b: 'i' } } ],
-            [ ['o','s'],            {o:'o',s:'s'},    { base: 'arr', items: [ 'o', 's' ] } ]
+            [ 'o',                              'transform',       'exp'],
+            [ {a:'s', b:'i'},                   {s:'s',i:'i'},    { base: 'rec', fields: { a: 's', b: 'i' } } ],
+            [ {a:'s', 'b*':'i'},                {s:'s',i:'i'},    { base: 'obj', expr: { 'b*': 'i' }, fields: { a: 's' } } ],
+            [ {$n:'foo', a:'s', b:'i'},         {s:'s',i:'i'},    { base: 'rec', name: 'foo', tinyname: 'foo', fullname: 'foo', fields: { a: 's', b: 'i' } } ],
+            [
+                {$n:'foo', $tn:'fo', $fn:'fooo', a:'s', 'b*':'i'},
+                {s:'s', i:'i'},
+                { base: 'obj', name: 'foo', tinyname: 'fo', fullname: 'fooo', expr: { 'b*': 'i' }, fields: { a: 's' } }
+            ],
+            [
+                { $n:'foo', a:'s', 'b*':{ $n:'int', $base: 'int'} },
+                { s:'s', i:'i' },
+                { base: 'obj', name: 'foo', tinyname: 'foo', fullname: 'foo', expr: { 'b*': 'int' }, fields: { a: 's' } }
+            ],
+            [ ['o','s'],                        {o:'o',s:'s'},    { base: 'arr', items: [ 'o', 's' ] } ],
         ],
         function (o, transform) {
             var info = typobj.obj2typ(o, function (v) {
                 return transform[v]
             })
-            var obj = typeof info.root === 'string' ? info.byname[root] : info.root
+            var obj = typeof info.root === 'string' ? info.byname[info.root] : info.root
             return qbobj.map(obj, null, null, {deep: ['base']})
         }
     )
@@ -189,12 +201,13 @@ test('obj2typ', function (t) {
 test('typ2obj', function (t) {
     t.table_assert(
         [
-            [ 'v',                      'transform',      'opt',      'exp'],
-            [ 'string',                 {string:'s'},     null,        's' ],
-            [ typbase.create('str'),    {},                null,      'str' ],
-            [ typbase.create({base:'rec', name:'foo', fields:{a:'i'}}), {i:'i'},    null,      { $name: 'foo', a: 'i'} ],
-            [ typbase.create({base:'arr', name:'foo', items:['i','s']}), {arr: 'a', i:'i',s:'s'},    null,      { $base: 'a', $name: 'foo', $items: [ 'i', 's' ] } ],
-            [ typbase.create({base:'arr', items:['i','s']}), {arr: 'a', i:'i',s:'s'},    null,      [ 'i', 's' ] ],
+            [ 'v',                                                          'transform',                'opt',          'exp'],
+            [ 'string',                                                     {string:'s'},               null,           's' ],
+            [ typbase.create('str'),                                        {},                         null,           'str' ],
+            [ typbase.create({base:'rec', name:'foo', fields:{a:'i'}}),     {i:'i'},                    null,           { $name: 'foo', a: 'i'} ],
+            [ typbase.create({base:'obj', name:'foo', expr:{'a*':'i'}}),    {i:'i'},                    null,           { $name: 'foo', 'a*': 'i' } ],
+            [ typbase.create({base:'arr', name:'foo', items:['i','s']}),    {arr: 'a', i:'i',s:'s'},    null,           { $base: 'a', $name: 'foo', $items: [ 'i', 's' ] } ],
+            [ typbase.create({base:'arr', items:['i','s']}),                {arr: 'a', i:'i',s:'s'},    null,           [ 'i', 's' ] ],
         ],
         function (v, transform, opt) {
             var ret = typobj.typ2obj(v, function (name, opt) {
