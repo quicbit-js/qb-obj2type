@@ -252,7 +252,11 @@ test('typ2obj', function (t) {
 test('typ2obj simple', function (t) {
     var simple = Object.keys(CODES).filter(function (name) { return !{ rec: 1, obj: 1, arr: 1 }[name] })
     simple.forEach(function (name) {
-        var code = CODES[name]
+        var type = typbase.create({base: name, name: name})
+        var obj = typobj.typ2obj(type, function (n) { return n })
+        t.same(obj, name, t.desc('', [name], name))
+    })
+    simple.forEach(function (name) {
         var type = typbase.create({base: name, name: 'foo'})
         var obj = typobj.typ2obj(type, function (n) { return n })
         var exp = { '$base': name, $name: 'foo' }
