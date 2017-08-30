@@ -187,6 +187,7 @@ function obj_by_name(obj, typ_transform) {
 // convert an object to a set of types by name using the given tset to interpret types.  return the root object and types by name as an object:
 // { root: ..., byname: types-by-name }
 function obj2typ (o, typ_transform) {
+    typeof o === 'object' || err('expected object but got: ' + (typeof o))
     // other types are in user-object form
     var names_map = collect_names(o)
     var trans = function (n, path) {
@@ -205,11 +206,11 @@ function typ2obj (v, typ_transform, opt) {
     if (v == null) {
         return null
     }
-    var ret = v
+    var ret
     switch (v.code) {
         case BASE_CODES.arr:
             if (v.isBase()) {
-                return ['*']
+                ret = ['*']
             }
             var items = v.items.map(function (item) { return typ2obj(item, typ_transform, opt)})
 
@@ -224,12 +225,12 @@ function typ2obj (v, typ_transform, opt) {
             }
             break
         case BASE_CODES.obj: case BASE_CODES.rec:
-        ret = copy_props(v, {}, opt)
-        ret = qbobj.map(v.fields, null, function (k,v) { return typ2obj(v, typ_transform, opt) }, {init: ret})
-        if (v.code === BASE_CODES.obj) {
-            ret = qbobj.map(v.expr, null, function (k,v) { return typ2obj(v, typ_transform, opt) }, {init: ret})
-        }
-        break
+            ret = copy_props(v, {}, opt)
+            ret = qbobj.map(v.fields, null, function (k,v) { return typ2obj(v, typ_transform, opt) }, {init: ret})
+            if (v.code === BASE_CODES.obj) {
+                ret = qbobj.map(v.expr, null, function (k,v) { return typ2obj(v, typ_transform, opt) }, {init: ret})
+            }
+            break
 
         default:
             if (typeof v === 'string') {
@@ -248,9 +249,11 @@ function typ2obj (v, typ_transform, opt) {
     return ret
 }
 
+function err (msg) { throw Error(msg) }
+
 module.exports = {
-    obj2typ: obj2typ,
     _has_char: has_char,
     _obj_by_name: obj_by_name,
+    obj2typ: obj2typ,
     typ2obj: function( v, typ_transform, opt ) { return typ2obj(v, typ_transform, assign({ tnf: 'name' }, opt)) }
 }

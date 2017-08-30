@@ -15,7 +15,10 @@
 // OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 var test = require('test-kit').tape()
-var tbase = require('.')
+var qbobj = require('qb1-obj')
+var typbase = require('qb1-type-base')
+var CODES = typbase.CODES
+var typobj = require('.')
 
 test('has_char', function (t) {
     t.table_assert([
@@ -27,7 +30,7 @@ test('has_char', function (t) {
         [ 'ab^c',       'c',      '^',       false ],
         [ 'ab^^c',      'c',      '^',       true ],
         [ 'ab^^^c',     'c',      '^',       false ],
-    ], tbase._has_char)
+    ], typobj._has_char)
 })
 
 test('obj_by_name', function (t) {
@@ -113,7 +116,7 @@ test('obj_by_name', function (t) {
                                 }
                             },
                             stip: { $n: 'x', string: 'int' }
-                        },
+                        }
                     }
                 }
             ],
@@ -161,9 +164,47 @@ test('obj_by_name', function (t) {
                 return name_map[n] || n
             }
 
-            return tbase._obj_by_name(obj, name_transform)
+            return typobj._obj_by_name(obj, name_transform)
         }
     )
 })
 
+test('obj2typ', function (t) {
+    t.table_assert(
+        [
+            [ 'o',                  'transform',       'exp'],
+            [ {a:'s', b:'i'},       {s:'s',i:'i'},    { base: 'rec', fields: { a: 's', b: 'i' } } ],
+            [ ['o','s'],            {o:'o',s:'s'},    { base: 'arr', items: [ 'o', 's' ] } ]
+        ],
+        function (o, transform) {
+            var info = typobj.obj2typ(o, function (v) {
+                return transform[v]
+            })
+            var obj = typeof info.root === 'string' ? info.byname[root] : info.root
+            return qbobj.map(obj, null, null, {deep: ['base']})
+        }
+    )
+})
+
+test('typ2obj', function (t) {
+    t.table_assert(
+        [
+            [ 'v',                      'transform',      'opt',      'exp'],
+            [ 'string',                 {string:'s'},     null,        's' ],
+            [ typbase.create('str'),    {},                null,      'str' ],
+            [ typbase.create({base:'rec', name:'foo', fields:{a:'i'}}), {i:'i'},    null,      { $name: 'foo', a: 'i'} ],
+            [ typbase.create({base:'arr', name:'foo', items:['i','s']}), {arr: 'a', i:'i',s:'s'},    null,      { $base: 'a', $name: 'foo', $items: [ 'i', 's' ] } ],
+            [ typbase.create({base:'arr', items:['i','s']}), {arr: 'a', i:'i',s:'s'},    null,      [ 'i', 's' ] ],
+        ],
+        function (v, transform, opt) {
+            var ret = typobj.typ2obj(v, function (name, opt) {
+                return transform[name]
+            })
+            if (typeof ret === 'object' && !Array.isArray(ret)) {
+                ret = qbobj.map(ret)
+            }
+            return ret
+        }
+    )
+})
 
