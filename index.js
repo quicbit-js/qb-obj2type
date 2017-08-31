@@ -239,25 +239,6 @@ function typ2obj (t, typ_transform, opt) {
                 qbobj.map(t.expr, null, function (k,v) { return typ2obj(v, typ_transform, opt) }, {init: ret})
             }
             break
-/*
-        [ null,  '*',       'any',     'Represents any value or type.  For example, [*] is an array of anything' ],
-            [ 'a',   'arr',     'array',   'Array of values matching types in a *cycle* (also see multi type).  [str] is an array of strings while [str, int] is an alternating array of [str, int, str, int, ...]' ],
-            [ 'X',   'blb',     'blob',    'A sequence of bytes' ],
-            [ 'b',   'boo',     'boolean', 'A true or false value.  Also can be a 0 or non-zero byte' ],
-            [ 'x',   'byt',     'byte',    'An integer in range 0..255'   ],
-            [ 'd',   'dec',     'decimal', 'An unbounded base-10 number (range ~~)' ],
-            [ 'f',   'flt',     'float',   'An unbounded base-2 number (range ~~)' ],
-            [ 'i',   'int',     'integer', 'An unbounded integer (range ..)' ],
-            [ 'm',   'mul',     'multi',   'A set of possible types in the form t1|t2|t3, (also see array cycling types)'   ],
-            [ 'n',   'num',     'number',  'Any rational number including decimals, floats, and integers' ],
-            [ 'o',   'obj',     'object',  'An object with flexible keys and flexible or fixed types which may be constrained using *-expressions'  ],   //  values must be as key/value pairs and the order in the value is the only order known.
-            [ 'r',   'rec',     'record',  'An object with fixed keys and types such as { field1: str, field2: [int] }' ],   //  order is known so values can be without keys (in order) or with keys (in any order)
-            [ 's',   'str',     'string',  'A string of unicode characters (code points in range 0..1114111)'  ],   // (1-3 chained bytes, 7-21 bits)
-            [ 't',   'typ',     'type',    'When type is used as a value, it represents of of the types in this list or any referenceable or registered type'  ],
-            [ 'F',   'fal',     'false',   'False boolean value' ],
-            [ 'N',   'nul',     'null',    'A null value which represents "not-set" for most situations' ],
-            [ 'T',   'tru',     'true',    'True boolean value' ],*/
-
         case BASE_CODES['*']:
         case BASE_CODES.blb: case BASE_CODES.boo: case BASE_CODES.byt: case BASE_CODES.dec:
         case BASE_CODES.flt: case BASE_CODES.int: case BASE_CODES.mul: case BASE_CODES.num:
