@@ -172,10 +172,11 @@ test('obj_by_name', function (t) {
 test('obj2typ', function (t) {
     t.table_assert(
         [
-            [ 'o',                              'transform',       'exp'],
-            [ {a:'s', b:'i'},                   {s:'s',i:'i'},    { base: 'rec', fields: { a: 's', b: 'i' } } ],
-            [ {a:'s', 'b*':'i'},                {s:'s',i:'i'},    { base: 'obj', expr: { 'b*': 'i' }, fields: { a: 's' } } ],
-            [ {$n:'foo', a:'s', b:'i'},         {s:'s',i:'i'},    { base: 'rec', name: 'foo', tinyname: 'foo', fullname: 'foo', fields: { a: 's', b: 'i' } } ],
+            [ 'o',                              'transform',                    'exp' ],
+            [ {a:'s', b:'i'},                   {s:'str',i:'int'},              { base: 'rec', fields: { a: 'str', b: 'int' } } ],
+            [ {$t:'t', a:'s', b:'i'},           {t:'typ',s:'str',i:'int'},      { base: 'rec', fields: { a: 'str', b: 'int' } } ],                // $type is optional
+            [ {$n:'foo', a:'s', b:'i'},         {s:'str',i:'int'},              { base: 'rec', name: 'foo', tinyname: 'foo', fullname: 'foo', fields: { a: 'str', b: 'int' } } ],
+            [ {a:'s', 'b*':'i'},                {s:'str',i:'int'},              { base: 'obj', expr: { 'b*': 'int' }, fields: { a: 'str' } } ],
             [
                 {$n:'foo', $tn:'fo', $fn:'fooo', a:'s', 'b*':'i'},
                 {s:'s', i:'i'},
@@ -195,6 +196,26 @@ test('obj2typ', function (t) {
             var obj = typeof info.root === 'string' ? info.byname[info.root] : info.root
             return qbobj.map(obj, null, null, {deep: ['base']})
         }
+    )
+})
+
+test('obj2typ errors', function (t) {
+    t.table_assert(
+        [
+            [ 'o',                              'transform',                    'exp' ],
+            [ {o: { $tn:'f', a:'s'} },        {s:'str'},                        /missing name prop/ ],
+            [ {a:'x', b:'i'},                   {i:'int'},                      /unknown type: a\/x/ ],
+            [ 'str',                            {},                             /expected an object/ ],
+            [ null,                             {},                             /expected an object/ ],
+            [ {o: { $n:7, a:'s'} },             {},                             /illegal type for o\/\$n/ ],
+
+        ],
+        function (o, transform) {
+            typobj.obj2typ(o, function (v) {
+                return transform[v]
+            })
+        },
+        { assert: 'throws' }
     )
 })
 

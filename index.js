@@ -92,6 +92,11 @@ var NAME_PROPS = {
     '$fullname': 1,
 }
 
+function pathstr (path, n) {
+    var sep = (path.length && n != null) ? '/' : ''
+    return path.join('/') + sep + (n || '')
+}
+
 // return a map of all names within the object ($tinyname, $fullname, $name) mapped to the name.
 function collect_names(obj) {
     return qbobj.walk(obj, function (carry, k, i, tcode, v, path) {
@@ -99,9 +104,9 @@ function collect_names(obj) {
             Object.keys(v).forEach(function (vk) {
                 if (NAME_PROPS[vk]) {
                     var name = v[vk]
-                    typeof name === 'string' || err('illegal type for ' + path.join('/') + '/' + vk + ': ' + (typeof name))
+                    typeof name === 'string' || err('illegal type for ' + pathstr(path, vk) + ': ' + (typeof name))
                     !carry[name] || err('name used more than once: ' + name)
-                    carry[name] = v.$n || v.$name || err('missing name: ' + path.join('/'))    // tinyname and fullname require a normal name
+                    carry[name] = v.$n || v.$name || err('missing name prop: ' + pathstr(path))    // ensure name if tinyname or fullname are set
                 }
             })
         }
@@ -198,11 +203,11 @@ function obj_by_name(obj, typ_transform) {
 // convert an object to a set of types by name using the given tset to interpret types.  return the root object and types by name as an object:
 // { root: ..., byname: types-by-name }
 function obj2typ (o, typ_transform) {
-    typeof o === 'object' || err('expected object but got: ' + (typeof o))
+    o && typeof o === 'object' || err('expected an object but got: ' + (Object.prototype.toString.call(o)))
     // other types are in user-object form
     var names_map = collect_names(o)
     var trans = function (n, path) {
-        return names_map[n] || typ_transform(n) || err('unknown type: ' + path.concat(n).join('/'))
+        return names_map[n] || typ_transform(n) || err('unknown type: ' + pathstr(path, n))
     }
 
     var ret = obj_by_name(o, trans)        // reduce/simplify nested structure
