@@ -202,12 +202,14 @@ test('obj2typ', function (t) {
 test('obj2typ errors', function (t) {
     t.table_assert(
         [
-            [ 'o',                              'transform',                    'exp' ],
-            [ {o: { $tn:'f', a:'s'} },        {s:'str'},                        /missing name prop/ ],
-            [ {a:'x', b:'i'},                   {i:'int'},                      /unknown type: a\/x/ ],
-            [ 'str',                            {},                             /expected an object/ ],
-            [ null,                             {},                             /expected an object/ ],
-            [ {o: { $n:7, a:'s'} },             {},                             /illegal type for o\/\$n/ ],
+            [ 'o',                                      'transform',                    'exp' ],
+            [ {o: { $tn:'f', a:'s'} },                  {s:'str'},                      /missing name prop/ ],
+            [ {o: { $foo:'f', a:'s'} },                 {s:'str'},                      /unknown property: \$foo/ ],
+            [ {a:'x', b:'i'},                           {i:'int'},                      /unknown type: a\/x/ ],
+            [ 'str',                                    {},                             /expected an object/ ],
+            [ null,                                     {},                             /expected an object/ ],
+            [ {a: { $n:7, a:'s'} },                     {},                             /illegal type for a\/\$n/ ],
+            [ [ { $n:'x', a:'s'}, { $n:'x', b:'i' } ],  {},                             /name used more than once/ ],
 
         ],
         function (o, transform) {
@@ -222,7 +224,7 @@ test('obj2typ errors', function (t) {
 test('typ2obj', function (t) {
     t.table_assert(
         [
-            [ 'tprops',                                                          'transform',                'opt',          'exp'],
+            [ 'tprops',                                     'transform',                'opt',          'exp' ],
             [ 'str',                                        {},                         null,           'str' ],
             [ {base:'rec', name:'foo', fields:{a:'i'}},     {i:'i'},                    null,           { $name: 'foo', a: 'i'} ],
             [
@@ -267,6 +269,20 @@ test('typ2obj', function (t) {
             }
             return ret
         }
+    )
+})
+
+test('typ2obj errors', function (t) {
+    t.table_assert(
+        [
+            [ 'tprops',                                                'transform',           'opt',          'exp' ],
+            [ {code: 114, base:'rec', fields:{a:'i'}},     {},                    null,           /unknown type/ ],
+            [ 7,                                            {},                    null,           /unexpected value/ ],
+        ],
+        function (tprops, transform, opt) {
+            typobj.typ2obj(tprops, function (name) { return transform[name] }, opt)
+        },
+        { assert: 'throws' }
     )
 })
 
