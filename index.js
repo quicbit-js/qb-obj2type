@@ -118,11 +118,11 @@ function transform_val(v, tcode, path, pstate, byname, typ_transform) {
     var nv
     switch (tcode) {
         case TCODES.ARR:
-            nv = { base: 'arr', items: [] }
+            nv = { base: 'arr' }
             pstate.push(nv)
             break
         case TCODES.OBJ:
-            nv = { base: 'rec', fields: {} }     // assume 'record' until proven otherwise (if expression is found or is set with property)
+            nv = { base: 'obj' }
             pstate.push(nv)
             var obj_name = v.$n || v.$name
             if (obj_name) {
@@ -181,18 +181,16 @@ function obj_by_name(obj, typ_transform) {
                 // type property
                 parent[propkey] = nv
             } else if (fieldkey) {
-                // record field or object expression
                 if (has_char(fieldkey, '*', '^')) {
-                    if (!parent.expr) {
-                        parent.base = 'obj'             // has expression key(s) - set base to 'obj'
-                        parent.expr = {}
-                    }
+                    if (!parent.expr) { parent.expr = {}}
                     parent.expr[fieldkey] = nv
                 } else {
+                    if (!parent.fields) { parent.fields = {}}
                     parent.fields[fieldkey] = nv
                 }
             } else {
                 // array value
+                if (!parent.items) { parent.items = [] }
                 parent.items[i] = nv
             }
         } else {
@@ -224,7 +222,7 @@ function typ2obj (t, typ_transform, opt) {
     var ret
     switch (t.code) {
         case BASE_CODES.arr:
-            var items = t.items.map(function (item) { return typ2obj(item, typ_transform, opt)})
+            var items = t.is_generic() ? [] : t.items.map(function (item) { return typ2obj(item, typ_transform, opt) })
 
             // return a simple array if there is only one property (the base)
             if (has_props(t, opt)) {
@@ -236,13 +234,13 @@ function typ2obj (t, typ_transform, opt) {
                 ret = items
             }
             break
-        case BASE_CODES.obj: case BASE_CODES.rec:
+        case BASE_CODES.obj:
             ret = {}
             if (t.name !== t.base) {
                 copy_type_props(t, ret, opt)
             }
             qbobj.map(t.fields, null, function (k,v) { return typ2obj(v, typ_transform, opt) }, {init: ret})
-            if (t.code === BASE_CODES.obj) {
+            if (Object.keys(t.expr).length && !t.is_generic()) {
                 qbobj.map(t.expr, null, function (k,v) { return typ2obj(v, typ_transform, opt) }, {init: ret})
             }
             break

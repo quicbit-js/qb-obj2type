@@ -44,13 +44,13 @@ test('obj_by_name', function (t) {
             [
                 { $n: 'xtype', $d: 'an example type', $base: 'i' },
                 { i: 'int' },
-                { root: 'xtype', byname: { xtype: { base: 'int', fields: {}, name: 'xtype', desc: 'an example type' } } }
+                { root: 'xtype', byname: { xtype: { base: 'int', name: 'xtype', desc: 'an example type' } } }
             ],
             [
                 // unnamed object
                 { a: 'int', b: {x: 'string', y: ['int'] } },
                 { string: 'str' },
-                { root: { base: 'rec', fields: { a: 'int', b: { base: 'rec', fields: { x: 'str', y: { base: 'arr', items: ['int'] } } } } }, byname: {} }
+                { root: { base: 'obj', fields: { a: 'int', b: { base: 'obj', fields: { x: 'str', y: { base: 'arr', items: ['int'] } } } } }, byname: {} }
             ],
             [
                 {
@@ -67,12 +67,12 @@ test('obj_by_name', function (t) {
                     root: 't1',
                     byname: {
                         t1: {
-                            base: 'rec',
+                            base: 'obj',
                             name: 't1', desc: 'a test type',
                             fields: {
                                 a: 'int',
                                 b: {
-                                    base: 'rec',
+                                    base: 'obj',
                                     fields: {
                                         x: 'str',
                                         y: {base: 'arr', items: ['int']}
@@ -101,11 +101,11 @@ test('obj_by_name', function (t) {
                     byname: {
                         t1:    {
                             name: 't1',
-                            base: 'rec',
+                            base: 'obj',
                             fields: {
                                 a: 'int',
                                 b: {
-                                    base: 'rec',
+                                    base: 'obj',
                                     fields: {
                                         x:'str',
                                         y: {
@@ -138,14 +138,14 @@ test('obj_by_name', function (t) {
                     byname: {
                         t1: {
                             name: 't1',
-                            base: 'rec',
+                            base: 'obj',
                             fields: {
                                 a: 'int',
                                 b: 't2' }
                         },
                         t2: {
                             name: 't2',
-                            base: 'rec',
+                            base: 'obj',
                             fields: {
                                 x: 'str',
                                 y: {
@@ -173,9 +173,10 @@ test('obj2typ', function (t) {
     t.table_assert(
         [
             [ 'o',                              'transform',                    'exp' ],
-            [ {a:'s', b:'i'},                   {s:'str',i:'int'},              { base: 'rec', fields: { a: 'str', b: 'int' } } ],
-            [ {$t:'t', a:'s', b:'i'},           {t:'typ',s:'str',i:'int'},      { base: 'rec', fields: { a: 'str', b: 'int' } } ],                // $type is optional
-            [ {$n:'foo', a:'s', b:'i'},         {s:'str',i:'int'},              { base: 'rec', name: 'foo', tinyname: 'foo', fullname: 'foo', fields: { a: 'str', b: 'int' } } ],
+            [ {a:'s', b:'i'},                   {s:'str',i:'int'},              { base: 'obj', fields: { a: 'str', b: 'int' }, expr: {} } ],
+            [ {$t:'t', a:'s', b:'i'},           {t:'typ',s:'str',i:'int'},      { base: 'obj', fields: { a: 'str', b: 'int' }, expr: {} } ],                // $type is optional
+            [ {},                               {},                             { base: 'obj', fields: {}, expr: { '*': '*' } } ],
+            [ {$n:'foo', a:'s', b:'i'},         {s:'str',i:'int'},              { base: 'obj', name: 'foo', tinyname: 'foo', fullname: 'foo', fields: { a: 'str', b: 'int' }, expr: {} } ],
             [ {a:'s', 'b*':'i'},                {s:'str',i:'int'},              { base: 'obj', expr: { 'b*': 'int' }, fields: { a: 'str' } } ],
             [
                 {$n:'foo', $tn:'fo', $fn:'fooo', a:'s', 'b*':'i'},
@@ -226,38 +227,44 @@ test('typ2obj', function (t) {
         [
             [ 'tprops',                                     'transform',                'opt',          'exp' ],
             [ 'str',                                        {},                         null,           'str' ],
-            [ {base:'rec', name:'foo', fields:{a:'i'}},     {i:'i'},                    null,           { $name: 'foo', a: 'i'} ],
+            [ {base:'obj'},                                 {},                         null,           {} ],
+            [ {base:'obj', fields:{}},                      {},                         null,           {} ],
+            [ {base:'obj', fields:{}, expr:{}},             {},                         null,           {} ],
+            [ {base:'obj', fields:{}, expr:{'*':'*'}},      {},                         null,           {} ],
+            [ {base:'obj', name:'foo'},                     {},                         null,           { $name: 'foo'} ],
+
+            [ {base:'obj', name:'foo', fields:{a:'i'}},     {i:'i'},                    null,           { $name: 'foo', a: 'i'} ],
             [
-                {base:'rec', name:'foo', tinyname: 'fo', fullname: 'fooo', fields:{a:'i'}},
+                {base:'obj', name:'foo', tinyname: 'fo', fullname: 'fooo', fields:{a:'i'}},
                 {i:'i'},
                 null,
                 { $name: 'foo', $tinyname: 'fo', $fullname: 'fooo', a: 'i' }
             ],
             [
-                {base:'rec', name:'foo', tinyname: 'fo', fullname: 'fooo', fields:{a:'i'}},
+                {base:'obj', name:'foo', tinyname: 'fo', fullname: 'fooo', fields:{a:'i'}},
                 { i:'i' },
                 { tnf: 'tinyname', excl:{tinyname:1} },
                 { $n: 'foo', $fn: 'fooo', a: 'i' }
             ],
             [
-                {base:'rec', name:'foo', tinyname: 'fo', fullname: 'fooo', fields:{a:'i'}},
+                {base:'obj', name:'foo', tinyname: 'fo', fullname: 'fooo', fields:{a:'i'}},
                 { i:'i' },
                 { tnf: 'fullname', incl:{name:1} },
                 { $name: 'foo', a: 'i' }
             ],
             [
-                {base:'rec', name:'foo', tinyname: 'fo', fullname: 'fooo', fields:{a:'i'}},
+                {base:'obj', name:'foo', tinyname: 'fo', fullname: 'fooo', fields:{a:'i'}},
                 { i:'i' },
                 { incl:{name:1}, excl:{name:1} },       // exclude overrides include
                 { a: 'i' }
             ],
-            [ {base:'obj', name:'foo', expr:{'a*':'i'}},    {i:'i'},                    null,           { $name: 'foo', 'a*': 'i' } ],
-            [ {base:'arr', items:['i','s']},                {arr: 'a', i:'i',s:'s'},    null,           [ 'i', 's' ] ],
-            [ {base:'arr', name:'foo', items:['i','s']},    {arr: 'a', i:'i',s:'s'},    null,           { $base: 'a', $name: 'foo', $items: ['i','s']} ],
-            [ {base:'arr', name:'foo', items:['i','s']},    {arr: 'a', i:'i',s:'s'},    {incl:{name:1}},  { $name: 'foo', $items: ['i','s']} ],
-            [ {base:'arr', name:'foo', items:['i','s']},    {arr: 'a', i:'i',s:'s'},    {excl:{name:1}},  [ 'i', 's' ] ],
-            [ {base:'arr', name:'arr'},                     {'*':'*'},    null,                         [ '*' ] ],
-            [ {base:'obj', name:'obj'},                     {'*':'*'},    null,                         {'*':'*'} ],
+            [ {base:'obj', name:'foo', expr:{'a*':'i'}},    {i:'i'},                    null,            { $name: 'foo', 'a*': 'i' } ],
+            [ {base:'arr', items:['i','s']},                {arr: 'a', i:'i',s:'s'},    null,            [ 'i', 's' ] ],
+            [ {base:'arr', name:'foo', items:['i','s']},    {arr: 'a', i:'i',s:'s'},    null,            { $base: 'a', $name: 'foo', $items: ['i','s']} ],
+            [ {base:'arr', name:'foo', items:['i','s']},    {arr: 'a', i:'i',s:'s'},    {incl:{name:1}}, { $name: 'foo', $items: ['i','s']} ],
+            [ {base:'arr', name:'foo', items:['i','s']},    {arr: 'a', i:'i',s:'s'},    {excl:{name:1}}, [ 'i', 's' ] ],
+            [ {base:'arr', name:'arr'},                     {'*':'*'},                  null,            [] ],
+            [ {base:'obj', name:'obj'},                     {},                         null,            {} ],
         ],
         function (tprops, transform, opt) {
             var type = typbase.create(tprops)
@@ -276,7 +283,7 @@ test('typ2obj errors', function (t) {
     t.table_assert(
         [
             [ 'tprops',                                                'transform',           'opt',          'exp' ],
-            [ {code: 114, base:'rec', fields:{a:'i'}},     {},                    null,           /unknown type/ ],
+            [ {code: -1, base:'obj', fields:{a:'i'}},     {},                    null,           /unexpected value/ ],
             [ 7,                                            {},                    null,           /unexpected value/ ],
         ],
         function (tprops, transform, opt) {
@@ -287,7 +294,7 @@ test('typ2obj errors', function (t) {
 })
 
 test('typ2obj simple', function (t) {
-    var simple = Object.keys(CODES).filter(function (name) { return !{ rec: 1, obj: 1, arr: 1 }[name] })
+    var simple = Object.keys(CODES).filter(function (name) { return !{ int: 1, obj: 1, arr: 1 }[name] })
     simple.forEach(function (name) {
         var type = typbase.create({base: name, name: name})
         var obj = typobj.typ2obj(type, function (n) { return n })
