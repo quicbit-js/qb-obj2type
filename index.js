@@ -114,6 +114,31 @@ function collect_names(obj) {
     }, {})
 }
 
+function transform_val(v, tcode, path, pstate, byname, typ_transform) {
+    var nv
+    switch (tcode) {
+        case TCODES.ARR:
+            nv = { base: 'arr', items: [] }
+            pstate.push(nv)
+            break
+        case TCODES.OBJ:
+            nv = { base: 'rec', fields: {} }     // assume 'record' until proven otherwise (if expression is found or is set with property)
+            pstate.push(nv)
+            var obj_name = v.$n || v.$name
+            if (obj_name) {
+                // replace named value with a reference
+                byname[obj_name] = nv
+                nv = obj_name
+            }
+            break
+        case TCODES.STR:
+            // string is a type name
+            nv = typ_transform(v, path)
+            break
+    }
+    return nv
+}
+
 // Find all named types within the given type array or object (nested), collect them in an object and replace
 // them with name string references.  return:
 //
@@ -142,34 +167,14 @@ function obj_by_name(obj, typ_transform) {
         }
         var nv = v                              // default v for any missing case, including 'skip'
 
-        // create substitute containers for array, plain record fields, and $type values
-        if (!k || fieldkey || propkey === 'name' || propkey === 'type' || propkey === 'base') {
-            switch (tcode) {
-                case TCODES.ARR:
-                    nv = { base: 'arr', items: [] }
-                    pstate.push(nv)
-                    break
-                case TCODES.OBJ:
-                    nv = { base: 'rec' }     // assume 'record' until proven otherwise (if expression is found or is set with property, below)
-                    pstate.push(nv)
-                    var obj_name = v.$n || v.$name
-                    if (obj_name) {
-                        // replace named value with a normalized reference
-                        obj_name = typ_transform(obj_name, path)        // todo: needed?
-                        ret.byname[obj_name] = nv
-                        nv = obj_name
-                    }
-                    break
-                case TCODES.STR:
-                    // string is a type name
-                    nv = typ_transform(v, path)
-                    break
-                // default: nv is v
-            }
+        // process arrays, plain record fields, and $base and $type values
+        if (!k || fieldkey || propkey === 'type' || propkey === 'base') {
+            nv = transform_val(v, tcode, path, pstate, ret.byname, typ_transform)
         } else {
-            // non-type field
             control.walk = 'skip'
         }
+
+        // hoist any '$value' properties into properties
 
         if (parent) {
             if (propkey) {
@@ -184,9 +189,6 @@ function obj_by_name(obj, typ_transform) {
                     }
                     parent.expr[fieldkey] = nv
                 } else {
-                    if (!parent.fields) {
-                        parent.fields = {}
-                    }
                     parent.fields[fieldkey] = nv
                 }
             } else {

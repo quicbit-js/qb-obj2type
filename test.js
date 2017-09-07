@@ -42,9 +42,9 @@ test('obj_by_name', function (t) {
                 'exp',
             ],
             [
-                { $n: 'xt', $d: 'an example type', $base: 'i' },
-                { xt: 'xtype', i: 'int' },
-                { root: 'xtype', byname: { xtype: { base: 'int', name: 'xtype', desc: 'an example type' } } }
+                { $n: 'xtype', $d: 'an example type', $base: 'i' },
+                { i: 'int' },
+                { root: 'xtype', byname: { xtype: { base: 'int', fields: {}, name: 'xtype', desc: 'an example type' } } }
             ],
             [
                 // unnamed object
