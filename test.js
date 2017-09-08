@@ -169,7 +169,7 @@ test('obj_by_name', function (t) {
     )
 })
 
-test.only('obj2typ', function (t) {
+test('obj2typ', function (t) {
     t.table_assert(
         [
             [ 'o',                              'transform',                    'exp' ],
@@ -186,21 +186,21 @@ test.only('obj2typ', function (t) {
             ],
 
 
-            [
-                { $value: {base: 'i', name: 'myint'} },
-                { i: 'int' },
-                { base: 'int', name: 'myint', tinyname: 'myint', fullname: 'myint' }
-            ],
-            [
-                { $value: {base: 'a', items: ['i']} },
-                { a: 'arr', i: 'int' },
-                { base: 'arr', items: ['i'] }
-            ],
-            [
-                { $value: {base: 'a', items: ['i']} },
-                { a: 'arr', i: 'int' },
-                { base: 'arr', items: ['i'] }
-            ],
+            // [
+            //     { $value: {base: 'i', name: 'myint'} },
+            //     { i: 'int' },
+            //     { base: 'int', name: 'myint', tinyname: 'myint', fullname: 'myint' }
+            // ],
+            // [
+            //     { $value: {base: 'a', items: ['i']} },
+            //     { a: 'arr', i: 'int' },
+            //     { base: 'arr', items: ['i'] }
+            // ],
+            // [
+            //     { $value: {base: 'a', items: ['i']} },
+            //     { a: 'arr', i: 'int' },
+            //     { base: 'arr', items: ['i'] }
+            // ],
             [ {a:'s', b:'i'},                   {s:'str',i:'int'},              { base: 'obj', fields: { a: 'str', b: 'int' }, expr: {} } ],
             [ {$t:'t', a:'s', b:'i'},           {t:'typ',s:'str',i:'int'},      { base: 'obj', fields: { a: 'str', b: 'int' }, expr: {} } ],                // $type is optional
             [ {},                               {},                             { base: 'obj', fields: {}, expr: { '*': '*' } } ],

@@ -176,31 +176,16 @@ function obj_by_name(obj, typ_transform) {
     // normalize property names.  e.g. $n -> name, $type -> type...
     var dprops = dprops_map('$')
     var props = dprops_map('')
-    var ret = { root: null, byname: {} }                     // put root object and named types into this result
+    var npath = []
+    var ret = { root: null, byname: {} }   // put root object and named types into this result
     qbobj.walk(obj, function (carry, k, i, tcode, v, path, pstate, control) {
+        // console.log('ENTER  path: /' + path.join('/') || 'root', ':', pstate.length)
+        // console.log('      npath: /' + npath.join('/') || 'root', ':', pstate.length)
         var parent = pstate[pstate.length-1]
         var prop_type      // arr_item, obj_prop, obj_field, or obj_expr
-        var nk
-        var prev = parent
+        var nk = null
         if (k) {
-            if (parent === VALUE_MARKER) {
-                // property within $value object - hoist to parent of $value
-                k[0] !== '$' || err('$-prefix cannot be used for object field names')
-                prop_type = 'obj_prop'
-                parent = pstate[pstate.length-2]
-                nk = props[k] || err('unknown property: ' + k)
-                // console.log(path.join('/'), prev, '->', parent)
-            } else if (parent === FIELDS_MARKER) {
-                // property of $value.fields - hoist to parent of $value.fields
-                k[0] !== '$' || err('$-prefix cannot be used for object field names')
-                prop_type = has_char(k, '*', '^') ? 'obj_expr' : 'obj_field'
-                parent = pstate[pstate.length-2]
-                if (parent === VALUE_MARKER) {
-                    parent = pstate[pstate.length-3]
-                }
-                nk = k
-                // console.log(path.join('/'), prev, '->', parent)
-            } else if (k[0] === '$') {
+            if (k[0] === '$') {
                 // dollar-prop at object level
                 prop_type = 'obj_prop'
                 nk = dprops[k] || err('unknown property: ' + k)   // remove '$'
@@ -209,22 +194,20 @@ function obj_by_name(obj, typ_transform) {
                 prop_type = has_char(k, '*', '^') ? 'obj_expr' : 'obj_field'
                 nk = k
             }
+        } else if (path.length === 0) {
+            prop_type = 'root'
+            nk = null
         } else {
             prop_type = 'arr_item'
             nk = i
         }
+        if (prop_type !== 'root') {
+            npath.push(nk)
+        }
 
-        if (prop_type === 'obj_prop' && nk === 'val') {
-            pstate.push(VALUE_MARKER)
-            return
-        }
-        if (prop_type === 'obj_prop' && nk === 'fields') {
-            pstate.push(FIELDS_MARKER)
-            return
-        }
         // process arrays, plain record fields, and $base and $type values
         var nv = v                              // default v for any missing case, including 'skip'
-        if (prop_type === 'obj_field' || prop_type === 'obj_expr' || prop_type === 'arr_item' || nk === 'type' || nk === 'base' || nk === 'val') {
+        if (prop_type === 'root' || prop_type === 'obj_field' || prop_type === 'obj_expr' || prop_type === 'arr_item' || nk === 'type' || nk === 'base' || nk === 'val') {
             nv = transform_type(v, tcode, path, pstate, ret.byname, typ_transform)
         } else {
             control.walk = 'skip'
@@ -234,7 +217,7 @@ function obj_by_name(obj, typ_transform) {
         } else {
             ret.root = nv       // nv is a string for named root, object for unnamed root
         }
-
+        // console.log('   -> npath: /' + npath.join('/') || 'root', ':', pstate.length)
     }, null)
     return ret
 }
