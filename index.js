@@ -207,7 +207,10 @@ function obj_by_name(obj, typ_transform) {
 
         // process arrays, plain record fields, and $base and $type values
         var nv = v                              // default v for any missing case, including 'skip'
-        if (prop_type === 'root' || prop_type === 'obj_field' || prop_type === 'obj_expr' || prop_type === 'arr_item' || nk === 'type' || nk === 'base' || nk === 'val') {
+        if (
+            prop_type === 'root' || prop_type === 'obj_field' || prop_type === 'obj_expr' || prop_type === 'arr_item' ||
+            prop_type === 'obj_prop' && (nk === 'type' || nk === 'base' || nk === 'val')
+        ) {
             nv = transform_type(v, tcode, path, pstate, ret.byname, typ_transform)
         } else {
             control.walk = 'skip'
