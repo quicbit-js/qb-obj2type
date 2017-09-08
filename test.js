@@ -169,7 +169,7 @@ test('obj_by_name', function (t) {
     )
 })
 
-test('obj2typ', function (t) {
+test.only('obj2typ', function (t) {
     t.table_assert(
         [
             [ 'o',                              'transform',                    'exp' ],
@@ -204,7 +204,7 @@ test('obj2typ', function (t) {
             [ {$t:'t', a:'s', b:'i'},           {t:'typ',s:'str',i:'int'},      { base: 'obj', fields: { a: 'str', b: 'int' }, expr: {} } ],                // $type is optional
             [ {},                               {},                             { base: 'obj', fields: {}, expr: { '*': '*' } } ],
             [ {$n:'foo', a:'s', b:'i'},         {s:'str',i:'int'},              { base: 'obj', name: 'foo', tinyname: 'foo', fullname: 'foo', fields: { a: 'str', b: 'int' }, expr: {} } ],
-            [ {a:'s', 'b*':'i'},                {s:'str',i:'int'},              { base: 'obj', expr: { 'b*': 'int' }, fields: { a: 'str' } } ],
+            [ {a:'s', 'b*':'i'},                {s:'str',i:'int'},              { base: 'obj', fields: { a: 'str' }, expr: { 'b*': 'int' } } ],
             [
                 { $n:'foo', $tn:'fo', $fn:'fooo', a:'s', 'b*':'i' },
                 { s:'s', i:'i' },

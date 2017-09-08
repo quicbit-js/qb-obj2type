@@ -159,65 +159,67 @@ function obj_by_name(obj, typ_transform) {
     var ret = { root: null, byname: {} }                     // put root object and named types into this result
     qbobj.walk(obj, function (carry, k, i, tcode, v, path, pstate, control) {
         var parent = pstate[pstate.length-1]
-        var prop_type = 'array'      // array, prop, or field
-        var nk = k
+        var prop_type = 'arr_item'      // arr_item, obj_prop, obj_field, or obj_expr
+        var nk
         var prev = parent
         if (k) {
             if (parent === VALUE_MARKER) {
                 // property within $value object - hoist to parent of $value
-                prop_type = 'prop'
-                nk = props[k] || err('unknown property: ' + k)
+                k[0] !== '$' || err('$-prefix cannot be used for object field names')
+                prop_type = 'obj_prop'
                 parent = pstate[pstate.length-2]
-                console.log(path.join('/'), prev, '->', parent)
+                nk = props[k] || err('unknown property: ' + k)
+                // console.log(path.join('/'), prev, '->', parent)
             } else if (parent === FIELDS_MARKER) {
                 // property of $value.fields - hoist to parent of $value.fields
-                nk[0] !== '$' || err('$-prefix cannot be used for object field names')
-                prop_type = 'field'
+                k[0] !== '$' || err('$-prefix cannot be used for object field names')
+                prop_type = has_char(k, '*', '^') ? 'obj_expr' : 'obj_field'
                 parent = pstate[pstate.length-2]
                 if (parent === VALUE_MARKER) {
                     parent = pstate[pstate.length-3]
                 }
-                console.log(path.join('/'), prev, '->', parent)
+                nk = k
+                // console.log(path.join('/'), prev, '->', parent)
             } else if (k[0] === '$') {
                 // dollar-prop at object level
-                prop_type = 'prop'
+                prop_type = 'obj_prop'
                 nk = dprops[k] || err('unknown property: ' + k)   // remove '$'
             } else {
                 // field prop at object level
-                prop_type = 'field'
+                prop_type = has_char(k, '*', '^') ? 'obj_expr' : 'obj_field'
+                nk = k
             }
         }
 
-        if (prop_type === 'prop' && nk === 'val') {
+        if (prop_type === 'obj_prop' && nk === 'val') {
             pstate.push(VALUE_MARKER)
             return
         }
-        if (prop_type === 'prop' && nk === 'fields') {
+        if (prop_type === 'obj_prop' && nk === 'fields') {
             pstate.push(FIELDS_MARKER)
             return
         }
         // process arrays, plain record fields, and $base and $type values
         var nv = v                              // default v for any missing case, including 'skip'
-        if (prop_type === 'field' || prop_type === 'array' || nk === 'type' || nk === 'base' || nk === 'val') {
+        if (prop_type === 'obj_field' || prop_type === 'obj_expr' || prop_type === 'arr_item' || nk === 'type' || nk === 'base' || nk === 'val') {
             nv = transform_type(v, tcode, path, pstate, ret.byname, typ_transform)
         } else {
             control.walk = 'skip'
         }
         if (parent) {
             switch (prop_type) {
-                case 'field':
-                    if (has_char(nk, '*', '^')) {
-                        if (!parent.expr) { parent.expr = {} }
-                        parent.expr[nk] = nv
-                    } else {
-                        if (!parent.fields) { parent.fields = {} }
-                        parent.fields[nk] = nv
-                    }
+                case 'obj_field':
+                    if (!parent.fields) { parent.fields = {} }
+                    parent.fields[nk] = nv
                     break
-                case 'prop':
+                case 'obj_expr':
+                    if (!parent.expr) { parent.expr = {} }
+                    parent.expr[nk] = nv
+                    break
+                case 'obj_prop':
                     parent[nk] = nv
                     break
-                case 'array':
+                case 'arr_item':
                     if (!parent.items) { parent.items = [] }
                     parent.items[i] = nv
                     break
