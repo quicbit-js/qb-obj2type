@@ -74,10 +74,10 @@ function copy_prop (n, v, dst, opt) {
 
 // return a map of ($-prefixed) prop names to prop.name
 // $s -> stip,          $stip -> stip,         $stipulations -> stip, ...
-function dprops_map () {
+function dprops_map (key_prefix) {
     return qbobj.map(
         tbase.PROPS_BY_NAME,
-        function (name) { return '$' + name },
+        function (name) { return key_prefix + name },
         function (name, prop) { return prop.name }
     )
 }
@@ -114,7 +114,7 @@ function collect_names(obj) {
     }, {})
 }
 
-function transform_val(v, tcode, path, pstate, byname, typ_transform) {
+function transform_type(v, tcode, path, pstate, byname, typ_transform) {
     var nv
     switch (tcode) {
         case TCODES.ARR:
@@ -151,51 +151,81 @@ function transform_val(v, tcode, path, pstate, byname, typ_transform) {
 // '$' prefix and collect custom properties (non-dollar) into 'fields' and 'expr' objects, preparing for type creation.
 // see tests for output examples.
 function obj_by_name(obj, typ_transform) {
+    var VALUE_MARKER = 'VALUE'
+    var FIELDS_MARKER = 'FIELDS'
     // normalize property names.  e.g. $n -> name, $type -> type...
-    var dprops = dprops_map()
+    var dprops = dprops_map('$')
+    var props = dprops_map('')
     var ret = { root: null, byname: {} }                     // put root object and named types into this result
     qbobj.walk(obj, function (carry, k, i, tcode, v, path, pstate, control) {
         var parent = pstate[pstate.length-1]
-        var propkey
-        var fieldkey
+        var prop_type = 'array'      // array, prop, or field
+        var nk = k
+        var prev = parent
         if (k) {
-            if (k[0] === '$') {
-                propkey = dprops[k] || err('unknown property: ' + k)   // remove '$' and give normal name
+            if (parent === VALUE_MARKER) {
+                // property within $value object - hoist to parent of $value
+                prop_type = 'prop'
+                nk = props[k] || err('unknown property: ' + k)
+                parent = pstate[pstate.length-2]
+                console.log(path.join('/'), prev, '->', parent)
+            } else if (parent === FIELDS_MARKER) {
+                // property of $value.fields - hoist to parent of $value.fields
+                nk[0] !== '$' || err('$-prefix cannot be used for object field names')
+                prop_type = 'field'
+                parent = pstate[pstate.length-2]
+                if (parent === VALUE_MARKER) {
+                    parent = pstate[pstate.length-3]
+                }
+                console.log(path.join('/'), prev, '->', parent)
+            } else if (k[0] === '$') {
+                // dollar-prop at object level
+                prop_type = 'prop'
+                nk = dprops[k] || err('unknown property: ' + k)   // remove '$'
             } else {
-                fieldkey = k
+                // field prop at object level
+                prop_type = 'field'
             }
         }
-        var nv = v                              // default v for any missing case, including 'skip'
 
+        if (prop_type === 'prop' && nk === 'val') {
+            pstate.push(VALUE_MARKER)
+            return
+        }
+        if (prop_type === 'prop' && nk === 'fields') {
+            pstate.push(FIELDS_MARKER)
+            return
+        }
         // process arrays, plain record fields, and $base and $type values
-        if (!k || fieldkey || propkey === 'type' || propkey === 'base') {
-            nv = transform_val(v, tcode, path, pstate, ret.byname, typ_transform)
+        var nv = v                              // default v for any missing case, including 'skip'
+        if (prop_type === 'field' || prop_type === 'array' || nk === 'type' || nk === 'base' || nk === 'val') {
+            nv = transform_type(v, tcode, path, pstate, ret.byname, typ_transform)
         } else {
             control.walk = 'skip'
         }
-
-        // hoist any '$value' properties into properties
-
         if (parent) {
-            if (propkey) {
-                // type property
-                parent[propkey] = nv
-            } else if (fieldkey) {
-                if (has_char(fieldkey, '*', '^')) {
-                    if (!parent.expr) { parent.expr = {}}
-                    parent.expr[fieldkey] = nv
-                } else {
-                    if (!parent.fields) { parent.fields = {}}
-                    parent.fields[fieldkey] = nv
-                }
-            } else {
-                // array value
-                if (!parent.items) { parent.items = [] }
-                parent.items[i] = nv
+            switch (prop_type) {
+                case 'field':
+                    if (has_char(nk, '*', '^')) {
+                        if (!parent.expr) { parent.expr = {} }
+                        parent.expr[nk] = nv
+                    } else {
+                        if (!parent.fields) { parent.fields = {} }
+                        parent.fields[nk] = nv
+                    }
+                    break
+                case 'prop':
+                    parent[nk] = nv
+                    break
+                case 'array':
+                    if (!parent.items) { parent.items = [] }
+                    parent.items[i] = nv
+                    break
             }
         } else {
             ret.root = nv       // nv is a string for named root, object for unnamed root
         }
+
     }, null)
     return ret
 }
