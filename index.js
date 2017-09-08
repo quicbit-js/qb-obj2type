@@ -139,6 +139,26 @@ function transform_type(v, tcode, path, pstate, byname, typ_transform) {
     return nv
 }
 
+function link_parent (prop_type, parent, k, v) {
+    switch (prop_type) {
+        case 'obj_field':
+            if (!parent.fields) { parent.fields = {} }
+            parent.fields[k] = v
+            break
+        case 'obj_expr':
+            if (!parent.expr) { parent.expr = {} }
+            parent.expr[k] = v
+            break
+        case 'obj_prop':
+            parent[k] = v
+            break
+        case 'arr_item':
+            if (!parent.items) { parent.items = [] }
+            parent.items[k] = v
+            break
+    }
+}
+
 // Find all named types within the given type array or object (nested), collect them in an object and replace
 // them with name string references.  return:
 //
@@ -159,7 +179,7 @@ function obj_by_name(obj, typ_transform) {
     var ret = { root: null, byname: {} }                     // put root object and named types into this result
     qbobj.walk(obj, function (carry, k, i, tcode, v, path, pstate, control) {
         var parent = pstate[pstate.length-1]
-        var prop_type = 'arr_item'      // arr_item, obj_prop, obj_field, or obj_expr
+        var prop_type      // arr_item, obj_prop, obj_field, or obj_expr
         var nk
         var prev = parent
         if (k) {
@@ -189,6 +209,9 @@ function obj_by_name(obj, typ_transform) {
                 prop_type = has_char(k, '*', '^') ? 'obj_expr' : 'obj_field'
                 nk = k
             }
+        } else {
+            prop_type = 'arr_item'
+            nk = i
         }
 
         if (prop_type === 'obj_prop' && nk === 'val') {
@@ -207,23 +230,7 @@ function obj_by_name(obj, typ_transform) {
             control.walk = 'skip'
         }
         if (parent) {
-            switch (prop_type) {
-                case 'obj_field':
-                    if (!parent.fields) { parent.fields = {} }
-                    parent.fields[nk] = nv
-                    break
-                case 'obj_expr':
-                    if (!parent.expr) { parent.expr = {} }
-                    parent.expr[nk] = nv
-                    break
-                case 'obj_prop':
-                    parent[nk] = nv
-                    break
-                case 'arr_item':
-                    if (!parent.items) { parent.items = [] }
-                    parent.items[i] = nv
-                    break
-            }
+            link_parent(prop_type, parent, nk, nv)
         } else {
             ret.root = nv       // nv is a string for named root, object for unnamed root
         }

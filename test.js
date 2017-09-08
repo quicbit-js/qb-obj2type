@@ -173,17 +173,18 @@ test.only('obj2typ', function (t) {
     t.table_assert(
         [
             [ 'o',                              'transform',                    'exp' ],
+            // [
+            //     { $value: ['i'] },
+            //     { a: 'arr', i: 'int' },
+            //     { base: 'arr', items: ['i'] }
+            // ],
+
             [
                 { $base: 'a', $items: ['i'] },
                 { a: 'arr', i: 'int' },
                 { base: 'arr', items: ['i'] }
             ],
 
-            // [
-            //     { $value: ['i'] },
-            //     { a: 'arr', i: 'int' },
-            //     { base: 'arr', items: ['i'] }
-            // ],
 
             [
                 { $value: {base: 'i', name: 'myint'} },
