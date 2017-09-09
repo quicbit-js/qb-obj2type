@@ -171,12 +171,9 @@ function link_parent (prop_type, parent, k, v) {
 // '$' prefix and collect custom properties (non-dollar) into 'fields' and 'expr' objects, preparing for type creation.
 // see tests for output examples.
 function obj_by_name(obj, typ_transform) {
-    var VALUE_MARKER = 'VALUE'
-    var FIELDS_MARKER = 'FIELDS'
     // normalize property names.  e.g. $n -> name, $type -> type...
     var dprops = dprops_map('$')
     var props = dprops_map('')
-    var npath = []
     var ret = { root: null, byname: {} }   // put root object and named types into this result
     qbobj.walk(obj, function (carry, k, i, tcode, v, path, pstate, control) {
         // console.log('ENTER  path: /' + path.join('/') || 'root', ':', pstate.length)
@@ -201,9 +198,6 @@ function obj_by_name(obj, typ_transform) {
             prop_type = 'arr_item'
             nk = i
         }
-        if (prop_type !== 'root') {
-            npath.push(nk)
-        }
 
         // process arrays, plain record fields, and $base and $type values
         var nv = v                              // default v for any missing case, including 'skip'
@@ -215,10 +209,11 @@ function obj_by_name(obj, typ_transform) {
         } else {
             control.walk = 'skip'
         }
-        if (parent) {
-            link_parent(prop_type, parent, nk, nv)
-        } else {
+
+        if (prop_type === 'root') {
             ret.root = nv       // nv is a string for named root, object for unnamed root
+        } else {
+            link_parent(prop_type, parent, nk, nv)
         }
         // console.log('   -> npath: /' + npath.join('/') || 'root', ':', pstate.length)
     }, null)
