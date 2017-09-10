@@ -174,12 +174,31 @@ function obj_by_name(obj, typ_transform) {
     // normalize property names.  e.g. $n -> name, $type -> type...
     var dprops = dprops_map('$')
     var props = dprops_map('')
-    var ret = { root: null, byname: {} }   // put root object and named types into this result
-    qbobj.walk(obj, function (carry, k, i, tcode, v, path, pstate, control) {
-        // console.log('ENTER  path: /' + path.join('/') || 'root', ':', pstate.length)
-        // console.log('      npath: /' + npath.join('/') || 'root', ':', pstate.length)
-        var parent = pstate[pstate.length-1]
-        var prop_type      // arr_item, obj_prop, obj_field, or obj_expr
+    var byname = {}                         // named types
+    var pstate = qbobj.walk(obj, function (carry, k, i, tcode, v, path, control) {
+        // carry holds the parent objects as we traverse the graph.  the little snippet below keeps the carry objects
+        // in sync with the path traversal:
+        //
+        // for example - traversing:
+        //    { 'prop-a': [ 'v1', 'v2' ], 'prop-b': 'v3' }
+        //
+        // yields:
+        //
+        //    path              carry
+        //    []                []                       +  root-obj
+        //    ['prop-a']        [root-obj]               +  array-obj
+        //    ['prop-a', 0]     [root-object, array-obj] +  nothing (v1 is terminal)
+        //    ['prop-a', 1]     [root-object, array-obj] +  nothing (v2 is terminal)
+        //    ['prop-b']        [root-object]            +  nothing (v3 is terminal)
+        //
+        // notice when prop-b was traversed, carry was shortened to match the path length.  also notice that the root object
+        // is never removed since zero-length path only happens at the start.
+        //
+        if (carry.length > path.length) {
+            carry.length = path.length
+        }
+        var parent = carry[carry.length-1]
+        var prop_type      // root, arr_item, obj_prop, obj_field, or obj_expr
         var nk = null
         if (k) {
             if (k[0] === '$') {
@@ -205,19 +224,19 @@ function obj_by_name(obj, typ_transform) {
             prop_type === 'root' || prop_type === 'obj_field' || prop_type === 'obj_expr' || prop_type === 'arr_item' ||
             prop_type === 'obj_prop' && (nk === 'type' || nk === 'base' || nk === 'val')
         ) {
-            nv = transform_type(v, tcode, path, pstate, ret.byname, typ_transform)
+            nv = transform_type(v, tcode, path, carry, byname, typ_transform)
         } else {
             control.walk = 'skip'
         }
 
-        if (prop_type === 'root') {
-            ret.root = nv       // nv is a string for named root, object for unnamed root
-        } else {
+        if (prop_type !== 'root') {
             link_parent(prop_type, parent, nk, nv)
         }
+        return carry
+        // return pstate[0]
         // console.log('   -> npath: /' + npath.join('/') || 'root', ':', pstate.length)
-    }, null)
-    return ret
+    }, [])
+    return { root: pstate[0].name || pstate[0], byname: byname }
 }
 
 // convert an object to a set of types by name using the given tset to interpret types.  return the root object and types by name as an object:
