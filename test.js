@@ -41,6 +41,16 @@ test('obj_by_name', function (t) {
                 'name_map',
                 'exp',
             ],
+            // [
+            //     { $type: 'type', $value: { $n: 'xtype', $d: 'an example type', $base: 'i' } },
+            //     { i: 'int' },
+            //     { root: 'xtype', byname: { xtype: { base: 'int', name: 'xtype', desc: 'an example type' } } }
+            // ],
+            [
+                { $t: 'type', $n: 'xtype', $d: 'an example type', $base: 'i' },
+                { i: 'int' },
+                { root: 'xtype', byname: { xtype: { base: 'int', name: 'xtype', desc: 'an example type' } } }
+            ],
             [
                 { $n: 'xtype', $d: 'an example type', $base: 'i' },
                 { i: 'int' },
@@ -186,11 +196,6 @@ test('obj2typ', function (t) {
             ],
 
 
-            // [
-            //     { $value: {base: 'i', name: 'myint'} },
-            //     { i: 'int' },
-            //     { base: 'int', name: 'myint', tinyname: 'myint', fullname: 'myint' }
-            // ],
             // [
             //     { $value: {base: 'a', items: ['i']} },
             //     { a: 'arr', i: 'int' },

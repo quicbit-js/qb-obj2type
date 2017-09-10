@@ -220,18 +220,23 @@ function obj_by_name(obj, typ_transform) {
 
         // process arrays, plain record fields, and $base and $type values
         var nv = v                              // default v for any missing case, including 'skip'
-        if (
-            prop_type === 'root' || prop_type === 'obj_field' || prop_type === 'obj_expr' || prop_type === 'arr_item' ||
-            prop_type === 'obj_prop' && (nk === 'type' || nk === 'base' || nk === 'val')
-        ) {
+        if ( prop_type === 'obj_prop' ) {
+            if (nk === 'type') {
+                v === 't' || v === 'typ' || v === 'type' || err('expected type to be "type", but got: ' + v)
+                return carry
+            } else if (nk === 'base' || nk === 'val') {
+                nv = transform_type(v, tcode, path, carry, byname, typ_transform)
+            } else {
+                control.walk = 'skip'
+            }
+        } else { // (prop_type === 'root' || prop_type === 'obj_field' || prop_type === 'obj_expr' || prop_type === 'arr_item')
             nv = transform_type(v, tcode, path, carry, byname, typ_transform)
-        } else {
-            control.walk = 'skip'
         }
 
         if (prop_type !== 'root') {
             link_parent(prop_type, parent, nk, nv)
         }
+
         return carry
         // return pstate[0]
         // console.log('   -> npath: /' + npath.join('/') || 'root', ':', pstate.length)
