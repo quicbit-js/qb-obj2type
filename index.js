@@ -307,7 +307,16 @@ function obj_by_name(obj, typ_transform) {
             if (typeof nv === 'object') {
                 parents.push(nv)
                 if (tcode === TCODES.OBJ) {
-                    var obj_name = (parent === VALUE && (v.n || v.name)) || (parent !== VALUE && (v.$n || v.$name)) || null
+                    var obj_name =
+                        (parent === VALUE && (v.n || v.name)) ||
+                        (parent !== VALUE && (v.$n || v.$name)) || null
+                    if (!obj_name) {
+                        var obj_val = v.$v || v.$val || v.$value || null
+                        if (obj_val) {
+                            obj_name = obj_val.n || obj_val.name || null
+                        }
+                    }
+
                     // register named types, and replace object with name
                     if (obj_name) {
                         byname[obj_name] = nv
