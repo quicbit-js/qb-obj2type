@@ -92,9 +92,19 @@ var NAME_PROPS = {
     '$fullname': 1,
 }
 
-function pathstr (path, n) {
-    var sep = (path.length && n != null) ? '/' : ''
-    return path.join('/') + sep + (n || '')
+function valtype (v) {
+    return v + ' ' + Object.prototype.toString.call(v)
+}
+
+function pathstr (path, n, v) {
+    if (n != null) {
+        path = path.concat(n)
+    }
+    return path.join('/') + (v ? ': ' + v : '')
+}
+
+function errp (msg, path, n, v) {
+    err(msg + ' at ' + pathstr(path, n, v))
 }
 
 // return a map of all names within the object ($tinyname, $fullname, $name) mapped to the name.
@@ -167,6 +177,104 @@ function set_prop (prop_type, dst_obj, k, v) {
 // '$' prefix and collect custom properties (non-dollar) into 'fields' and 'expr' objects, preparing for type creation.
 // see tests for output examples.
 //
+function obj_by_name (obj, typ_transform) {
+    // context is null, 'value', or 'fields' - influences interpretation of properties
+    var info = { path: [], byname: {}, typ_transform: typ_transform }
+    var root = process_any(null, obj, info, null)
+    return { root: root, byname: info.byname }
+}
+
+// normalize property names.  e.g. $n -> name, $type -> type...
+var DPROPS = dprops_map('$')
+
+function process_any(k, v, info, dst) {
+    v || err('missing value: ' + pathstr(info.path))
+    var ret
+    switch (typeof v) {
+        case 'object':
+            if (k !== null) { info.path.push(k) }
+            if (Array.isArray(v)) {
+                ret = process_arr(v, info, dst)
+            } else {
+                ret = process_obj(v, info, dst)
+            }
+            if (k !== null) { info.path.pop(k) }
+            break
+        case 'string':
+            ret = process_ref(k, v, info, dst)
+            break
+        default:
+            err('unexpected value: ' + pathstr(info.path, k, valtype(v)))
+    }
+    return ret
+}
+
+// process a reference string (type name)
+function process_ref (k, v, info, dst) {
+    return info.typ_transform(v) || err('unknown type: ' + pathstr(info.path, k, v))
+}
+
+// a type object that may represent any type using base, value and custom (non-$) properties.
+function process_obj (obj, info, dst) {
+    dst = dst || { base: null }        // collect normalized properties into this object, checking for collisions.  set base first because it's easier on the eyes when debugging
+
+    // collect, check, and standardize property names while resolving fields and field expressions
+    var special = { base: null, val: null, typ: null }  // use null as placeholder (not set yet, but is special prop)
+    Object.keys(obj).forEach(function (k) {
+        var v = obj[k]
+        if (k[0] === '$') {
+            var nk = DPROPS[k] || errp('unknown property', info.path, k)
+            if (special[nk] !== undefined) {
+                special[nk] = v
+            } else {
+                !dst[nk] || errp('property defined twice: under parent and within child', info.path, k)
+                dst[nk] = v     // non-special properties are transferred to dst as-is (no change)
+            }
+        } else {
+            if (has_char(k, '*', '^')) {
+                if (!dst.expr) { dst.expr =  {} }
+                !dst[k] || errp('expression defined twice', info.path, k)
+                dst.expr[k] = process_any(k, v, info, dst)
+            } else {
+                if (!dst.fields) { dst.fields = {} }
+                dst.fields[k] = process_any(k, v, info, dst)
+            }
+        }
+    })
+
+    // Process $-Metadata and write values onto the 'ret' object - to be returned.
+    // order is important - first write type and base props, then recurse value (which checks against base and
+    // may add fields and expressions),
+    if (special.typ) {
+        info.typ_transform(special.typ) === 'typ' || err('expected type "type" but got: ' + special.typ)
+    }
+    if (special.base) {
+        dst.base = info.typ_transform(special.base)
+    }
+    if (special.val) {
+        var ndst = process_any ('$val', special.val, info, dst)
+        var ntyp = typeof ndst
+        if (ntyp === 'string' || ntyp === 'object' && Array.isArray(ntyp)) {
+            Object.keys(dst).length === 1 && dst.base === null || errp('properties are not allowed with value ' + ndst, info.path, '$val')
+        }
+        dst = ndst
+    } else {
+        // replace named objects with their names
+        if (dst.name) {
+            info.byname[dst.name] = dst
+            dst = dst.name
+        }
+    }
+
+    dst.base = dst.base || 'obj'
+    return dst
+}
+
+function process_arr (arr, info) {
+    var items = arr.map(function (v,i) { return process_any(i, v, info)})
+    return { base: 'arr', items: items }
+}
+
 // implementation notes:
 //
 // $values are written to parent. for example - this object:
@@ -214,7 +322,8 @@ function set_prop (prop_type, dst_obj, k, v) {
 //    ['$v','$stip']         {a:'0..100'}       [root]                      // set stip        *on root*
 //    ['b']                  's'                [root]                      // Error.                       because root is marked 'nested'
 
-function obj_by_name(obj, typ_transform) {
+
+function obj_by_name2(obj, typ_transform) {
     // normalize property names.  e.g. $n -> name, $type -> type...
     var dprops = dprops_map('$')
     var props = dprops_map('')
@@ -340,12 +449,13 @@ function obj_by_name(obj, typ_transform) {
 function obj2typ (o, typ_transform) {
     o && typeof o === 'object' || err('expected an object but got: ' + (Object.prototype.toString.call(o)))
     // other types are in user-object form
-    var names_map = collect_names(o)
-    var trans = function (n, path) {
-        return names_map[n] || typ_transform(n) || err('unknown type: ' + pathstr(path, n))
+    var names_map = collect_names(o)        // todo: pass base types - do not allow override
+    var typ_trans = function (n, path) {
+        // allow new names to override established names (typ_transform)
+        return names_map[n] || typ_transform(n) || err('unknown type: ' + pathstr(path, n)) // todo: check with base types
     }
 
-    var ret = obj_by_name(o, trans)        // reduce/simplify nested structure
+    var ret = obj_by_name(o, typ_trans)        // reduce/simplify nested structure
 
     ret.byname = qbobj.map(ret.byname, null, function (n, props) { return tbase.create(props) })
     if (ret.root.base) { ret.root = tbase.create(ret.root) }
