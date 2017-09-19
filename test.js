@@ -41,7 +41,7 @@ test('has_char', function (t) {
 })
 
 
-test.only('obj_by_name - no-name', function (t) {
+test('obj_by_name - no-name', function (t) {
     var typ_trans = function (n) { return base_types_by_name[n].name }
     t.table_assert(
         [
@@ -287,9 +287,8 @@ test('obj2typ', function (t) {
             [ ['o','s'],                        {o:'o',s:'s'},    { base: 'arr', items: [ 'o', 's' ] } ],
         ],
         function (o, transform) {
-            var info = typobj.obj2typ(o, function (v) {
-                return transform[v]
-            })
+            var typ_trans = function (v) { return transform[v] }
+            var info = typobj.obj2typ(o, typ_trans)
             var obj = typeof info.root === 'string' ? info.byname[info.root] : info.root
             return qbobj.map(obj, null, null, {deep: ['base']})
         }
@@ -301,8 +300,8 @@ test('obj2typ errors', function (t) {
         [
             [ 'o',                                      'transform',                    'exp' ],
             [ {o: { $tn:'f', a:'s'} },                  {s:'str'},                      /missing name prop/ ],
-            [ {o: { $foo:'f', a:'s'} },                 {s:'str'},                      /unknown property: \$foo/ ],
-            [ {a:'x', b:'i'},                           {i:'int'},                      /unknown type: a\/x/ ],
+            [ {o: { $foo:'f', a:'s'} },                 {s:'str'},                      /unknown property/ ],
+            [ {a:'x', b:'i'},                           {i:'int'},                      /unknown type/ ],
             [ 'str',                                    {},                             /expected an object/ ],
             [ null,                                     {},                             /expected an object/ ],
             [ {a: { $n:7, a:'s'} },                     {},                             /illegal type for a\/\$n/ ],

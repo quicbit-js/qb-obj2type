@@ -201,7 +201,7 @@ function process_any(k, v, info, val_dst) {
             if (k !== null) { info.path.pop(k) }
             break
         case 'string':
-            ret = info.typ_transform(v) || err('unknown type: ' + pathstr(info.path, k, v))
+            ret = info.typ_transform(v, info.path) || err('unknown type: ' + pathstr(info.path, k, v))
             break
         default:
             err('unexpected value: ' + pathstr(info.path, k, valtype(v)))
@@ -229,23 +229,36 @@ function process_obj (obj, info, val_dst) {
             if (has_char(k, '*', '^')) {
                 if (!dst.expr) { dst.expr =  {} }
                 !dst[k] || errp('expression defined twice', info.path, k)
-                dst.expr[k] = process_any(k, v, info)
+                dst.expr[k] = v
             } else {
                 if (!dst.fields) { dst.fields = {} }
-                dst.fields[k] = process_any(k, v, info)
+                dst.fields[k] = v
             }
         }
     })
 
-    // Process $-Metadata and write values onto the 'ret' object - to be returned.
-    // order is important - first write type and base props, then recurse value (which checks against base and
-    // may add fields and expressions),
     if (special.typ) {
-        info.typ_transform(special.typ) === 'typ' || err('expected type "type" but got: ' + special.typ)
+        info.typ_transform(special.typ, info.path) === 'typ' || errp('expected type "type" but got ' + special.typ, info.path)
     }
     if (special.base) {
-        dst.base = info.typ_transform(special.base)
+        dst.base = info.typ_transform(special.base, info.path)
     }
+    switch (dst.base) {
+        case 'arr':
+            dst.items || errp('array missing items', info.path)
+            dst.items = dst.items.map(function (v, i) { return process_any(i, v, info) })
+            break
+        case 'obj': case null:
+            if (dst.fields) {
+                dst.fields = qbobj.map(dst.fields, null, function (k, v) { return process_any(k, v, info)} )
+            }
+            if (dst.expr) {
+                dst.expr = qbobj.map(dst.expr, null, function (k, v) { return process_any(k, v, info)} )
+            }
+            break
+        // other base types require no special handling
+    }
+
     if (special.val) {
         Object.keys(dst).length === 1 && dst.base === null || errp('properties are not allowed with value ' + dst, info.path, '$val')
         dst = process_any ('$val', special.val, info, dst)
@@ -264,7 +277,9 @@ function process_obj (obj, info, val_dst) {
 }
 
 function process_arr (arr, info) {
-    var items = arr.map(function (v,i) { return process_any(i, v, info)})
+    var items = arr.map(function (v,i) {
+        return process_any(i, v, info)
+    })
     return { base: 'arr', items: items }
 }
 
