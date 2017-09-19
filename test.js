@@ -246,29 +246,22 @@ test('obj2typ', function (t) {
     t.table_assert(
         [
             [ 'o',                              'transform',                    'exp' ],
-            // [
-            //     { $value: ['i'] },
-            //     { a: 'arr', i: 'int' },
-            //     { base: 'arr', items: ['i'] }
-            // ],
+            [
+                { $value: ['i'] },
+                { a: 'arr', i: 'int' },
+                { base: 'arr', items: ['int'] }
+            ],
 
             [
                 { $base: 'a', $items: ['i'] },
                 { a: 'arr', i: 'int' },
                 { base: 'arr', items: ['int'] }
             ],
-
-
-            // [
-            //     { $value: {base: 'a', items: ['i']} },
-            //     { a: 'arr', i: 'int' },
-            //     { base: 'arr', items: ['i'] }
-            // ],
-            // [
-            //     { $value: {base: 'a', items: ['i']} },
-            //     { a: 'arr', i: 'int' },
-            //     { base: 'arr', items: ['i'] }
-            // ],
+            [
+                { $value: {base: 'a', items: ['i']} },
+                { a: 'arr', i: 'int' },
+                { base: 'obj', fields: { base: 'arr', items: { base: 'arr', items: [ 'int' ] } }, expr: {} }
+            ],
             [ {a:'s', b:'i'},                   {s:'str',i:'int'},              { base: 'obj', fields: { a: 'str', b: 'int' }, expr: {} } ],
             [ {$t:'t', a:'s', b:'i'},           {t:'typ',s:'str',i:'int'},      { base: 'obj', fields: { a: 'str', b: 'int' }, expr: {} } ],                // $type is optional
             [ {},                               {},                             { base: 'obj', fields: {}, expr: { '*': '*' } } ],
@@ -290,7 +283,7 @@ test('obj2typ', function (t) {
             var typ_trans = function (v) { return transform[v] }
             var info = typobj.obj2typ(o, typ_trans)
             var obj = typeof info.root === 'string' ? info.byname[info.root] : info.root
-            return qbobj.map(obj, null, null, {deep: ['base']})
+            return qbobj.map(obj, null, null, {deep: ['base']})   // removes null values
         }
     )
 })
