@@ -187,21 +187,21 @@ function obj_by_name (obj, typ_transform) {
 // normalize property names.  e.g. $n -> name, $type -> type...
 var DPROPS = dprops_map('$')
 
-function process_any(k, v, info, dst) {
+function process_any(k, v, info, val_dst) {
     v || err('missing value: ' + pathstr(info.path))
     var ret
     switch (typeof v) {
         case 'object':
             if (k !== null) { info.path.push(k) }
             if (Array.isArray(v)) {
-                ret = process_arr(v, info, dst)
+                ret = process_arr(v, info)
             } else {
-                ret = process_obj(v, info, dst)
+                ret = process_obj(v, info, val_dst)
             }
             if (k !== null) { info.path.pop(k) }
             break
         case 'string':
-            ret = process_ref(k, v, info, dst)
+            ret = info.typ_transform(v) || err('unknown type: ' + pathstr(info.path, k, v))
             break
         default:
             err('unexpected value: ' + pathstr(info.path, k, valtype(v)))
@@ -209,14 +209,9 @@ function process_any(k, v, info, dst) {
     return ret
 }
 
-// process a reference string (type name)
-function process_ref (k, v, info, dst) {
-    return info.typ_transform(v) || err('unknown type: ' + pathstr(info.path, k, v))
-}
-
 // a type object that may represent any type using base, value and custom (non-$) properties.
-function process_obj (obj, info, dst) {
-    dst = dst || { base: null }        // collect normalized properties into this object, checking for collisions.  set base first because it's easier on the eyes when debugging
+function process_obj (obj, info, val_dst) {
+    var dst = val_dst || { base: null }        // collect normalized properties into this object, checking for collisions.  set base first because it's easier on the eyes when debugging
 
     // collect, check, and standardize property names while resolving fields and field expressions
     var special = { base: null, val: null, typ: null }  // use null as placeholder (not set yet, but is special prop)
@@ -234,10 +229,10 @@ function process_obj (obj, info, dst) {
             if (has_char(k, '*', '^')) {
                 if (!dst.expr) { dst.expr =  {} }
                 !dst[k] || errp('expression defined twice', info.path, k)
-                dst.expr[k] = process_any(k, v, info, dst)
+                dst.expr[k] = process_any(k, v, info)
             } else {
                 if (!dst.fields) { dst.fields = {} }
-                dst.fields[k] = process_any(k, v, info, dst)
+                dst.fields[k] = process_any(k, v, info)
             }
         }
     })
@@ -252,12 +247,8 @@ function process_obj (obj, info, dst) {
         dst.base = info.typ_transform(special.base)
     }
     if (special.val) {
-        var ndst = process_any ('$val', special.val, info, dst)
-        var ntyp = typeof ndst
-        if (ntyp === 'string' || ntyp === 'object' && Array.isArray(ntyp)) {
-            Object.keys(dst).length === 1 && dst.base === null || errp('properties are not allowed with value ' + ndst, info.path, '$val')
-        }
-        dst = ndst
+        Object.keys(dst).length === 1 && dst.base === null || errp('properties are not allowed with value ' + dst, info.path, '$val')
+        dst = process_any ('$val', special.val, info, dst)
     } else {
         // replace named objects with their names
         if (dst.name) {
@@ -266,7 +257,9 @@ function process_obj (obj, info, dst) {
         }
     }
 
-    dst.base = dst.base || 'obj'
+    if (typeof dst === 'object') {
+        dst.base = dst.base || 'obj'
+    }
     return dst
 }
 

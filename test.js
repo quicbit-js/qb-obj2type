@@ -41,7 +41,7 @@ test('has_char', function (t) {
 })
 
 
-test('obj_by_name - no-name', function (t) {
+test.only('obj_by_name - no-name', function (t) {
     var typ_trans = function (n) { return base_types_by_name[n].name }
     t.table_assert(
         [
@@ -64,6 +64,7 @@ test('obj_by_name - no-name', function (t) {
             [ [ 'i' ],                          { base: 'arr', items: [ 'int' ] } ],
             [ [ { a: 's'} ],                    { base: 'arr', items: [ { base: 'obj', fields: { a: 'str' } } ] } ],
             [ [ { a: [ 'i', 'n' ]} ],           { base: 'arr', items: [ { base: 'obj', fields: { a: { base: 'arr', items: [ 'int', 'num' ] } } } ] } ],
+            [ { a: 'int', b: {x: 'string', y: ['int'] } },    { base: 'obj', fields: { a: 'int', b: { base: 'obj', fields: { x: 'str', y: { base: 'arr', items: ['int'] } } } } } ],
         ],
         function (obj) {
             var info = typobj._obj_by_name(obj, typ_trans)
