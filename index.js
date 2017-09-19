@@ -114,55 +114,14 @@ function collect_names(obj) {
             Object.keys(v).forEach(function (vk) {
                 if (NAME_PROPS[vk]) {
                     var name = v[vk]
-                    typeof name === 'string' || err('illegal type for ' + pathstr(path, vk) + ': ' + (typeof name))
-                    !carry[name] || err('name used more than once: ' + name)
-                    carry[name] = v.$n || v.$name || err('missing name prop: ' + pathstr(path))    // ensure name if tinyname or fullname are set
+                    typeof name === 'string' || errp('illegal type ' + (typeof name), path, vk)
+                    !carry[name] || errp('name used more than once', path, name)
+                    carry[name] = v.$n || v.$name || errp('missing name prop', path)    // ensure name if tinyname or fullname are set
                 }
             })
         }
         return carry
     }, {})
-}
-
-function transform_type(v, tcode, path, typ_transform) {
-    var nv
-    switch (tcode) {
-        case TCODES.ARR:
-            nv = { base: 'arr' }
-            break
-        case TCODES.OBJ:
-            nv = { base: 'obj' }
-            break
-        case TCODES.STR:
-            // string is a type name
-            nv = typ_transform(v, path)
-            break
-        default:
-            err('unexpected value type: ' + tcode)
-    }
-    return nv
-}
-
-function set_prop (prop_type, dst_obj, k, v) {
-    switch (prop_type) {
-        case 'obj_field':
-            if (!dst_obj.fields) { dst_obj.fields = {} }
-            dst_obj.fields[k] = v
-            break
-        case 'obj_expr':
-            if (!dst_obj.expr) { dst_obj.expr = {} }
-            dst_obj.expr[k] = v
-            break
-        case 'meta':
-            dst_obj[k] = v
-            break
-        case 'arr_item':
-            if (!dst_obj.items) { dst_obj.items = [] }
-            dst_obj.items[k] = v
-            break
-        default:
-            err('unknown prop_type')
-    }
 }
 
 // Find all named types within the given type array or object (nested), collect them in an object and replace
@@ -188,7 +147,7 @@ function obj_by_name (obj, typ_transform) {
 var DPROPS = dprops_map('$')
 
 function process_any(k, v, info, val_dst) {
-    v || err('missing value: ' + pathstr(info.path))
+    v || errp('missing value', info.path, k)
     var ret
     switch (typeof v) {
         case 'object':
@@ -201,10 +160,10 @@ function process_any(k, v, info, val_dst) {
             if (k !== null) { info.path.pop(k) }
             break
         case 'string':
-            ret = info.typ_transform(v, info.path) || err('unknown type: ' + pathstr(info.path, k, v))
+            ret = info.typ_transform(v, info.path) || errp('unknown type', info.path, k, v)
             break
         default:
-            err('unexpected value: ' + pathstr(info.path, k, valtype(v)))
+            errp('unexpected value', info.path, k, valtype(v))
     }
     return ret
 }
@@ -283,175 +242,6 @@ function process_arr (arr, info) {
     return { base: 'arr', items: items }
 }
 
-// implementation notes:
-//
-// $values are written to parent. for example - this object:
-//
-//   { $t: 'type', $v: { $n: 'xtype', $d: 'an example type', $base: 'i' } }
-//
-// is traversed with this state:
-//
-//    path              v                   parents-at-entry
-//    []                {$t:'type'...       []
-//    ['$t']            'type'              [root]                  // type checked - not written
-//    ['$v']            {$n:'xtype'...      [root]                  // add val-obj, *root*      marked as nested, assert root has no custom fields
-//    ['$v','$n']       'xtype'             [root,val-obj]          // set name     *on root*   because parent is val-obj
-//    ['$v','$d']       'an example...'     [root,val-obj]          // set desc     *on root*
-//    ['$v','$b']       'i'                 [root,val-obj]          // set base     *on root* (override 'obj')
-//
-// $fields are written to parent and mixed custom fields are not allowed, for example:
-//
-//   { $t: 'type', $n: 'xtype', $fields: {a:'i'}, $stip: {a:'0..100'}, b:'s' }
-//
-// is traversed with this state:
-//
-//    path                  v                   parents-at-entry
-//    []                    {$t:'type'...       []
-//    ['$t']                'type'              [root]                      // type checked - not written
-//    ['$n']                'xtype'             [root]                      // set name        *on root*
-//    ['$fields']           {a:'i'}             [root]                      // add fields-obj  *root*       marked as nested, assert root has no custom fields
-//    ['$fields','a']       'i'                 [root,fields-obj]           // set fields.a    *on root*    because parent is fields-obj
-//    ['$stip']             {a:'0..100'}        [root]                      // set stip        *on root*
-//    ['b']                 's'                 [root]                      // Error.                       because root is marked 'nested' (no mixed fields)
-//
-// $fields in a $value are written to parent-parent, and mixed fields are not allowed:
-//
-//   { $t: 'type', $v: { $n: 'xtype', $fields: {a:'i'} }, $stip: {a:'0..100'}, {b:'s'} }
-//
-// is traversed with this state:
-//
-//    path                   v                  parents-at-entry
-//    []                     {$t:'type'...      []
-//    ['$t']                 'type'             [root]                      // type checked - not written
-//    ['$v']                 {$n:'xtype'...     [root]                      // add val-obj     *root*       marked as nested, assert root has no custom fields
-//    ['$v','$n']            'xtype'            [root,val-obj]              // set name        *on root*
-//    ['$v','$fields']       {a:'i'}            [root,val-obj]              // add fields-obj
-//    ['$v','$fields','a']   'i'                [root,val-obj,fields-obj]   // set fields.a    *on root*    because parent is fields-obj and parent-parent is val-obj
-//    ['$v','$stip']         {a:'0..100'}       [root]                      // set stip        *on root*
-//    ['b']                  's'                [root]                      // Error.                       because root is marked 'nested'
-
-
-function obj_by_name2(obj, typ_transform) {
-    // normalize property names.  e.g. $n -> name, $type -> type...
-    var dprops = dprops_map('$')
-    var props = dprops_map('')
-    var byname = {}                         // named types
-    var FIELDS = 'FIELDS'
-    var VALUE = 'VALUE'
-
-    // parents (the carry) holds the stack of parent objects that match path as we traverse the graph.
-    var parents = qbobj.walk(obj, function (parents, k, i, tcode, v, path, control) {
-        var parent                      // parent container or marker (FIELDS, VALUES, or object)
-        var dst_obj                     // object that we will write properties to (may be a level or two above '$fields' or '$value')
-        if (path.length) {
-            // keep parents length in synch with path as we traverse the graph
-            if (parents.length > path.length) {
-                parents.length = path.length
-            }
-            // figure dst_obj
-            var pidx = parents.length - 1
-            parent = dst_obj = parents[pidx]
-            if (dst_obj === FIELDS) {
-                dst_obj = parents[--pidx]
-            }
-            if (dst_obj === VALUE) {
-                dst_obj = parents[--pidx]
-            }
-        }
-
-        // figure prop_type and normal property name (nk)
-        var prop_type      // root, arr_item, meta, obj_field, or obj_expr
-        var nk
-        if (path.length === 0) {
-            prop_type = 'root'
-            // nk is undefined
-        } else if (k) {
-            if (parent === FIELDS) {
-                // custom property definition
-                prop_type = has_char(k, '*', '^') ? 'obj_expr' : 'obj_field'
-                nk = k
-            } else if (parent === VALUE) {
-                // value/type metadata
-                prop_type = 'meta'
-                nk = props[k] || err('unknown property for type: ' + k)
-            } else if (k[0] === '$') {
-                // value/type metadata
-                prop_type = 'meta'
-                nk = dprops[k] || err('unknown property: ' + k)   // remove '$'
-            } else {
-                // custom property definition
-                prop_type = has_char(k, '*', '^') ? 'obj_expr' : 'obj_field'
-                nk = k
-            }
-        } else {
-            prop_type = 'arr_item'
-            nk = i
-        }
-
-        // handle meta values
-        var nv
-        if (prop_type === 'meta') {
-            if (nk === 'val') {
-                dst_obj.nested_fields == null || err('property: ' + k + ' cannot be set under property: ' + obj.nested_fields)
-                !dst_obj.fields && !dst_obj.expr || err('type cannot mix custom fields with value property: ' + k)
-                dst_obj.nested_fields = 'value'
-                parents.push(VALUE)
-                nv = null                           // no value to set
-            } else if (nk === 'fields') {
-                !dst_obj.fields && !dst_obj.expr || err('type cannot mix custom fields with fields property: ' + k)
-                dst_obj.nested_fields = 'fields'
-                parents.push(FIELDS)
-                nv = null                           // no value to set
-            } else if (nk === 'typ') {
-                v === 't' || v === 'typ' || v === 'type' || err('expected type to be "type", but got: ' + v)
-                nv = null                           // no value to set
-            } else {
-                // meta value will be set on dst_obj...
-                if (nk === 'base') {
-                    nv = typ_transform(v) || err('unknown base type: ' + v)
-                } else if (nk === 'stip') {
-                    // keep value intact, for now
-                    nv = v
-                    control.walk = 'skip'
-                } else {
-                    nv = v  // is name, description...
-                }
-            }
-        } else {
-            // non-meta property (root, obj_field, obj_expr, or arr_item)
-            nv = transform_type(v, tcode, path, typ_transform)
-
-            if (typeof nv === 'object') {
-                parents.push(nv)
-                if (tcode === TCODES.OBJ) {
-                    var obj_name =
-                        (parent === VALUE && (v.n || v.name)) ||
-                        (parent !== VALUE && (v.$n || v.$name)) || null
-                    if (!obj_name) {
-                        var obj_val = v.$v || v.$val || v.$value || null
-                        if (obj_val) {
-                            obj_name = obj_val.n || obj_val.name || null
-                        }
-                    }
-
-                    // register named types, and replace object with name
-                    if (obj_name) {
-                        byname[obj_name] = nv
-                        nv = obj_name
-                    }
-                }
-            }
-        }
-
-        if (nv && prop_type !== 'root') {
-            set_prop(prop_type, dst_obj, nk, nv)
-        }
-
-        return parents
-    }, [])
-    return { root: parents[0].name || parents[0], byname: byname }
-}
-
 // convert an object to a set of types by name using the given tset to interpret types.  return the root object and types by name as an object:
 // { root: ..., byname: types-by-name }
 function obj2typ (o, typ_transform) {
@@ -460,7 +250,7 @@ function obj2typ (o, typ_transform) {
     var names_map = collect_names(o)        // todo: pass base types - do not allow override
     var typ_trans = function (n, path) {
         // allow new names to override established names (typ_transform)
-        return names_map[n] || typ_transform(n) || err('unknown type: ' + pathstr(path, n)) // todo: check with base types
+        return names_map[n] || typ_transform(n) || errp('unknown type', path, n) // todo: check with base types
     }
 
     var ret = obj_by_name(o, typ_trans)        // reduce/simplify nested structure

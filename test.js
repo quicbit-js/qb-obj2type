@@ -304,7 +304,7 @@ test('obj2typ errors', function (t) {
             [ {a:'x', b:'i'},                           {i:'int'},                      /unknown type/ ],
             [ 'str',                                    {},                             /expected an object/ ],
             [ null,                                     {},                             /expected an object/ ],
-            [ {a: { $n:7, a:'s'} },                     {},                             /illegal type for a\/\$n/ ],
+            [ {a: { $n:7, a:'s'} },                     {},                             /illegal type/ ],
             [ [ { $n:'x', a:'s'}, { $n:'x', b:'i' } ],  {},                             /name used more than once/ ],
 
         ],
