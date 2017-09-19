@@ -103,134 +103,127 @@ test('obj_by_name - named', function (t) {
                 'name_map',
                 'exp',
             ],
-            // $value written to parent
-            // [
-            //     { $t: 'type', $v: { $n: 'xtype', $d: 'an example type', $base: 'i' } },
-            //     { i: 'int' },
-            //     { root: 'xtype', byname: { xtype: { base: 'int', name: 'xtype', desc: 'an example type' } } }
-            // ],
-            // [
-            //     { $t: 'type', $n: 'xtype', $d: 'an example type', $base: 'i' },
-            //     { i: 'int' },
-            //     { root: 'xtype', byname: { xtype: { base: 'int', name: 'xtype', desc: 'an example type' } } }
-            // ],
-            // [
-            //     { $n: 'xtype', $d: 'an example type', $base: 'i' },
-            //     { i: 'int' },
-            //     { root: 'xtype', byname: { xtype: { base: 'int', name: 'xtype', desc: 'an example type' } } }
-            // ],
             [
-                // unnamed object
-                { a: 'int', b: {x: 'string', y: ['int'] } },
-                { string: 'str' },
-                { root: { base: 'obj', fields: { a: 'int', b: { base: 'obj', fields: { x: 'str', y: { base: 'arr', items: ['int'] } } } } }, byname: {} }
+                { $t: 'type', $v: { $n: 'xtype', $d: 'an example type', $base: 'i' } },     // inner $value
+                { i: 'int', type: 'typ' },
+                { root: 'xtype', byname: { xtype: { base: 'int', name: 'xtype', desc: 'an example type' } } }
             ],
-            // [
-            //     {
-            //         $name: 't1', $description: 'a test type',
-            //         a: 'int',
-            //         b: {
-            //             x: 'str',
-            //             y: ['int']
-            //         },
-            //         c: 'foo'
-            //     },
-            //     { t1: 't1', foo: 'fooby' },
-            //     {
-            //         root: 't1',
-            //         byname: {
-            //             t1: {
-            //                 base: 'obj',
-            //                 name: 't1', desc: 'a test type',
-            //                 fields: {
-            //                     a: 'int',
-            //                     b: {
-            //                         base: 'obj',
-            //                         fields: {
-            //                             x: 'str',
-            //                             y: {base: 'arr', items: ['int']}
-            //                         }
-            //                     },
-            //                     c: 'fooby'
-            //                 }
-            //             }
-            //         }
-            //     }
-            // ],
-            // [
-            //     // keep stipulations intact (non-type args)
-            //     {
-            //         $name: 't1',
-            //         a: 'int',
-            //         b: {
-            //             x: 'str',
-            //             y: ['int']
-            //         },
-            //         $stip: { $n: 'x', string: 'int' }
-            //     },
-            //     { t1: 't1', x: 'x' },
-            //     {
-            //         root: 't1',
-            //         byname: {
-            //             t1:    {
-            //                 name: 't1',
-            //                 base: 'obj',
-            //                 fields: {
-            //                     a: 'int',
-            //                     b: {
-            //                         base: 'obj',
-            //                         fields: {
-            //                             x:'str',
-            //                             y: {
-            //                                 base: 'arr',
-            //                                 items: ['int']
-            //                             }
-            //                         }
-            //                     }
-            //                 },
-            //                 stip: { $n: 'x', string: 'int' }
-            //             }
-            //         }
-            //     }
-            // ],
-            // [
-            //     {
-            //         $name: 't1',
-            //         a: 'int',
-            //         b: {
-            //             $name: 't2',
-            //             x: 'str',
-            //             y: ['int'],
-            //             c: 'xt'
-            //         }
-            //     },
-            //     // [ { $n: 'xt', $d: 'an example type', $t: 'i' } ],  - need tset.put() to fix this
-            //     { xt: 'xtype', t1: 't1', t2: 't2' },
-            //     {
-            //         root: 't1',
-            //         byname: {
-            //             t1: {
-            //                 name: 't1',
-            //                 base: 'obj',
-            //                 fields: {
-            //                     a: 'int',
-            //                     b: 't2' }
-            //             },
-            //             t2: {
-            //                 name: 't2',
-            //                 base: 'obj',
-            //                 fields: {
-            //                     x: 'str',
-            //                     y: {
-            //                         base: 'arr',
-            //                         items: [ 'int' ]
-            //                     },
-            //                     c: 'xtype'
-            //                 }
-            //             }
-            //         }
-            //     }
-            // ]
+            [
+                { $t: 'type', $n: 'xtype', $d: 'an example type', $base: 'i' },
+                { i: 'int', type: 'typ' },
+                { root: 'xtype', byname: { xtype: { base: 'int', name: 'xtype', desc: 'an example type' } } }
+            ],
+            [
+                { $n: 'xtype', $d: 'an example type', $base: 'i' },
+                { i: 'int' },
+                { root: 'xtype', byname: { xtype: { base: 'int', name: 'xtype', desc: 'an example type' } } }
+            ],
+            [
+                {
+                    $name: 't1', $description: 'a test type',
+                    a: 'int',
+                    b: {
+                        x: 'str',
+                        y: ['int']
+                    },
+                    c: 'foo'
+                },
+                { t1: 't1', foo: 'fooby', object: 'obj' },
+                {
+                    root: 't1',
+                    byname: {
+                        t1: {
+                            base: 'obj',
+                            name: 't1', desc: 'a test type',
+                            fields: {
+                                a: 'int',
+                                b: {
+                                    base: 'obj',
+                                    fields: {
+                                        x: 'str',
+                                        y: {base: 'arr', items: ['int']}
+                                    }
+                                },
+                                c: 'fooby'
+                            }
+                        }
+                    }
+                }
+            ],
+            [
+                // keep stipulations intact (non-type args)
+                {
+                    $name: 't1',
+                    a: 'int',
+                    b: {
+                        x: 'str',
+                        y: ['int']
+                    },
+                    $stip: { $n: 'x', string: 'int' }
+                },
+                { t1: 't1', x: 'x' },
+                {
+                    root: 't1',
+                    byname: {
+                        t1:    {
+                            name: 't1',
+                            base: 'obj',
+                            fields: {
+                                a: 'int',
+                                b: {
+                                    base: 'obj',
+                                    fields: {
+                                        x:'str',
+                                        y: {
+                                            base: 'arr',
+                                            items: ['int']
+                                        }
+                                    }
+                                }
+                            },
+                            stip: { $n: 'x', string: 'int' }
+                        }
+                    }
+                }
+            ],
+            [
+                {
+                    $name: 't1',
+                    a: 'int',
+                    b: {
+                        $name: 't2',
+                        x: 'str',
+                        y: ['int'],
+                        c: 'xt'
+                    }
+                },
+                // [ { $n: 'xt', $d: 'an example type', $t: 'i' } ],  - need tset.put() to fix this
+                { xt: 'xtype', t1: 't1', t2: 't2' },
+                {
+                    root: 't1',
+                    byname: {
+                        t1: {
+                            name: 't1',
+                            base: 'obj',
+                            fields: {
+                                a: 'int',
+                                b: 't2' }
+                        },
+                        t2: {
+                            name: 't2',
+                            base: 'obj',
+                            fields: {
+                                x: 'str',
+                                y: {
+                                    base: 'arr',
+                                    items: [ 'int' ]
+                                },
+                                c: 'xtype'
+                            }
+                        }
+                    }
+                }
+            ]
         ],
         function (obj, name_map) {
             var name_transform = function (n) {

@@ -222,6 +222,9 @@ function process_obj (obj, info, val_dst) {
         Object.keys(dst).length === 1 && dst.base === null || errp('properties are not allowed with value ' + dst, info.path, '$val')
         dst = process_any ('$val', special.val, info, dst)
     } else {
+        if (typeof dst === 'object') {
+            dst.base = dst.base || 'obj'
+        }
         // replace named objects with their names
         if (dst.name) {
             info.byname[dst.name] = dst
@@ -229,9 +232,6 @@ function process_obj (obj, info, val_dst) {
         }
     }
 
-    if (typeof dst === 'object') {
-        dst.base = dst.base || 'obj'
-    }
     return dst
 }
 
