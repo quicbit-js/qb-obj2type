@@ -245,7 +245,12 @@ function process_arr (arr, info) {
 // convert an object to a set of types by name using the given tset to interpret types.  return the root object and types by name as an object:
 // { root: ..., byname: types-by-name }
 function obj2typ (o, typ_transform) {
-    o && typeof o === 'object' || err('expected an object but got: ' + (Object.prototype.toString.call(o)))
+    if (typeof o === 'string') {
+        return { root: typ_transform(o), byname: {} }
+    }
+    if (o == null) {
+        return { root: 'nul', byname: {} }
+    }
     // other types are in user-object form
     var names_map = collect_names(o)        // todo: pass base types - do not allow override
     var typ_trans = function (n, path) {
@@ -253,7 +258,7 @@ function obj2typ (o, typ_transform) {
         return names_map[n] || typ_transform(n) || errp('unknown type', path, n) // todo: check with base types
     }
 
-    var ret = obj_by_name(o, typ_trans)        // reduce/simplify nested structure
+    var ret = obj_by_name(o, typ_trans)        // convert arguments into standard properties, flattening named arguments.
 
     ret.byname = qbobj.map(ret.byname, null, function (n, props) { return tbase.create(props) })
     if (ret.root.base) { ret.root = tbase.create(ret.root) }

@@ -239,6 +239,8 @@ test('obj2typ', function (t) {
     t.table_assert(
         [
             [ 'o',                              'transform',                    'exp' ],
+            [ 's',                             {s:'str'},                       'str' ],
+            [ 'N',                             {N:'nul'},                       'nul' ],
             [
                 { $value: ['i'] },
                 { a: 'arr', i: 'int' },
@@ -275,8 +277,11 @@ test('obj2typ', function (t) {
         function (o, transform) {
             var typ_trans = function (v) { return transform[v] }
             var info = typobj.obj2typ(o, typ_trans)
-            var obj = typeof info.root === 'string' ? info.byname[info.root] : info.root
-            return qbobj.map(obj, null, null, {deep: ['base']})   // removes null values
+            var obj = typeof info.root === 'string' && info.byname[info.root] || info.root
+            if (typeof obj === 'object') {
+                obj = qbobj.map(obj, null, null, {deep: ['base']})   // removes null values
+            }
+            return obj
         }
     )
 })
@@ -288,8 +293,6 @@ test('obj2typ errors', function (t) {
             [ {o: { $tn:'f', a:'s'} },                  {s:'str'},                      /missing name prop/ ],
             [ {o: { $foo:'f', a:'s'} },                 {s:'str'},                      /unknown property/ ],
             [ {a:'x', b:'i'},                           {i:'int'},                      /unknown type/ ],
-            [ 'str',                                    {},                             /expected an object/ ],
-            [ null,                                     {},                             /expected an object/ ],
             [ {a: { $n:7, a:'s'} },                     {},                             /illegal type/ ],
             [ [ { $n:'x', a:'s'}, { $n:'x', b:'i' } ],  {},                             /name used more than once/ ],
 
