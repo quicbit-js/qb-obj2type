@@ -248,9 +248,6 @@ function obj2typ (o, typ_transform) {
     if (typeof o === 'string') {
         return { root: typ_transform(o), byname: {} }
     }
-    if (o == null) {
-        return { root: 'nul', byname: {} }
-    }
     // other types are in user-object form
     var names_map = collect_names(o)        // todo: pass base types - do not allow override
     var typ_trans = function (n, path) {
