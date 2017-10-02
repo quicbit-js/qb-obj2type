@@ -136,9 +136,9 @@ function collect_names(obj) {
 // '$' prefix and collect custom properties (non-dollar) into 'fields' and 'expr' objects, preparing for type creation.
 // see tests for output examples.
 //
-function obj_by_name (obj, typ_str_transform) {
+function obj_by_name (obj, typstr_transform) {
     // context is null, 'value', or 'fields' - influences interpretation of properties
-    var info = { path: [], byname: {}, typ_str_transform: typ_str_transform }
+    var info = { path: [], byname: {}, typstr_transform: typstr_transform }
     var root = process_any(null, obj, info, null)
     return { root: root, byname: info.byname }
 }
@@ -160,7 +160,7 @@ function process_any(k, v, info, val_dst) {
             if (k !== null) { info.path.pop(k) }
             break
         case 'string':
-            ret = info.typ_str_transform(v, info.path) || errp('unknown type', info.path, k, v)
+            ret = info.typstr_transform(v, info.path) || errp('unknown type', info.path, k, v)
             break
         default:
             errp('unexpected value', info.path, k, valtype(v))
@@ -197,10 +197,10 @@ function process_obj (obj, info, val_dst) {
     })
 
     if (special.typ) {
-        info.typ_str_transform(special.typ, info.path) === 'typ' || errp('expected type "type" but got ' + special.typ, info.path)
+        info.typstr_transform(special.typ, info.path) === 'typ' || errp('expected type "type" but got ' + special.typ, info.path)
     }
     if (special.base) {
-        dst.base = info.typ_str_transform(special.base, info.path)
+        dst.base = info.typstr_transform(special.base, info.path)
     }
     switch (dst.base) {
         case 'arr':
@@ -244,15 +244,15 @@ function process_arr (arr, info) {
 
 // convert an object to a set of types by name using the given tset to interpret types.  return the root object and types by name as an object:
 // { root: ..., byname: types-by-name }
-function obj2typ (o, typ_str_transform) {
+function obj2typ (o, typstr_transform) {
     if (typeof o === 'string') {
-        return { root: typ_str_transform(o), byname: {} }
+        return { root: typstr_transform(o), byname: {} }
     }
     // other types are in user-object form
     var names_map = collect_names(o)        // todo: pass base types - do not allow override
     var ts_trans = function (n, path) {
-        // allow new names to override established names (typ_str_transform)
-        return names_map[n] || typ_str_transform(n) || errp('unknown type', path, n) // todo: check with base types
+        // allow new names to override established names (typstr_transform)
+        return names_map[n] || typstr_transform(n) || errp('unknown type', path, n) // todo: check with base types
     }
 
     var ret = obj_by_name(o, ts_trans)        // convert arguments into standard properties, flattening named arguments.
@@ -263,16 +263,16 @@ function obj2typ (o, typ_str_transform) {
     return ret
 }
 
-function typ2obj (t, typ_str_transform, opt) {
+function typ2obj (t, typstr_transform, opt) {
     var ret
     switch (t.code) {
         case BASE_CODES.arr:
-            var items = t.is_generic() ? [] : t.items.map(function (item) { return typ2obj(item, typ_str_transform, opt) })
+            var items = t.is_generic() ? [] : t.items.map(function (item) { return typ2obj(item, typstr_transform, opt) })
 
             // return a simple array if there is only one property (the base)
             if (has_props(t, opt)) {
                 ret = {}
-                copy_prop('base', typ2obj(t.base, typ_str_transform, opt), ret, opt)
+                copy_prop('base', typ2obj(t.base, typstr_transform, opt), ret, opt)
                 copy_type_props(t, ret, opt)
                 ret.$items = items
             } else {
@@ -284,9 +284,9 @@ function typ2obj (t, typ_str_transform, opt) {
             if (t.name !== t.base) {
                 copy_type_props(t, ret, opt)
             }
-            qbobj.map(t.fields, null, function (k,v) { return typ2obj(v, typ_str_transform, opt) }, {init: ret})
+            qbobj.map(t.fields, null, function (k,v) { return typ2obj(v, typstr_transform, opt) }, {init: ret})
             if (Object.keys(t.expr).length && !t.is_generic()) {
-                qbobj.map(t.expr, null, function (k,v) { return typ2obj(v, typ_str_transform, opt) }, {init: ret})
+                qbobj.map(t.expr, null, function (k,v) { return typ2obj(v, typstr_transform, opt) }, {init: ret})
             }
             break
         case BASE_CODES['*']:
@@ -298,13 +298,13 @@ function typ2obj (t, typ_str_transform, opt) {
                 ret = t[opt.tnf]            // base types as string
             } else {
                 ret = {}
-                copy_prop('base', typ2obj(t.base, typ_str_transform, opt), ret, opt)
+                copy_prop('base', typ2obj(t.base, typstr_transform, opt), ret, opt)
                 copy_type_props(t, ret, opt)
             }
             break;
         default:
             typeof t === 'string' || err('unexpected value: ' + t)
-            ret = typ_str_transform(t, opt) || err('unknown type: ' + t)
+            ret = typstr_transform(t, opt) || err('unknown type: ' + t)
     }
     return ret
 }
@@ -315,5 +315,5 @@ module.exports = {
     _has_char: has_char,
     _obj_by_name: obj_by_name,
     obj2typ: obj2typ,
-    typ2obj: function( v, typ_str_transform, opt ) { return typ2obj(v, typ_str_transform, assign({ tnf: 'name' }, opt)) }
+    typ2obj: function( v, typstr_transform, opt ) { return typ2obj(v, typstr_transform, assign({ tnf: 'name' }, opt)) }
 }

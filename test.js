@@ -42,7 +42,7 @@ test('has_char', function (t) {
 
 
 test('obj_by_name - no-name', function (t) {
-    var typ_str_trans = function (n) { return base_types_by_name[n].name }
+    var typstr_trans = function (n) { return base_types_by_name[n].name }
     t.table_assert(
         [
             [ 'obj',                            'exp' ],
@@ -67,7 +67,7 @@ test('obj_by_name - no-name', function (t) {
             [ { a: 'int', b: {x: 'string', y: ['int'] } },    { base: 'obj', fields: { a: 'int', b: { base: 'obj', fields: { x: 'str', y: { base: 'arr', items: ['int'] } } } } } ],
         ],
         function (obj) {
-            var info = typobj._obj_by_name(obj, typ_str_trans)
+            var info = typobj._obj_by_name(obj, typstr_trans)
             Object.keys(info.byname).length === 0 || err('byname should be empty')
             return info.root
         }
@@ -88,10 +88,10 @@ test('obj_by_name - errors', function (t) {
         v: 'val',
         val: 'val',
     }
-    var typ_str_trans = function (n) { return types[n] || n }
+    var typstr_trans = function (n) { return types[n] || n }
     t.table_assert([
-        [ 'obj',                                  'typ_str_transform',              'exp' ],
-        [ { $base: 'obj', $v: 'str' },            typ_str_trans,                    /properties are not allowed/ ],
+        [ 'obj',                                  'typstr_transform',              'exp' ],
+        [ { $base: 'obj', $v: 'str' },            typstr_trans,                    /properties are not allowed/ ],
     ], typobj._obj_by_name, {assert: 'throws'})
 })
 
@@ -275,8 +275,8 @@ test('obj2typ', function (t) {
             [ ['o','s'],                        {o:'o',s:'s'},    { base: 'arr', items: [ 'o', 's' ] } ],
         ],
         function (o, transform) {
-            var typ_str_trans = function (v) { return transform[v] }
-            var info = typobj.obj2typ(o, typ_str_trans)
+            var typstr_trans = function (v) { return transform[v] }
+            var info = typobj.obj2typ(o, typstr_trans)
             var obj = typeof info.root === 'string' && info.byname[info.root] || info.root
             if (typeof obj === 'object') {
                 obj = qbobj.map(obj, null, null, {deep: ['base']})   // removes null values
