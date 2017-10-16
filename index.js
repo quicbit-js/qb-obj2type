@@ -16,6 +16,9 @@
 
 var tbase = require('qb1-type-base')
 var BASE_CODES = tbase.CODES
+var PROPS_BY_NAME = tbase.PROPS_BY_NAME
+var BASE_TYPES_BY_NAME = tbase.TYPES_BY_NAME
+
 var assign = require('qb-assign')
 var qbobj = require('qb1-obj')
 var TCODES = qbobj.TCODES
@@ -107,23 +110,155 @@ function errp (msg, path, n, v) {
     err(msg + ' at ' + pathstr(path, n, v))
 }
 
-// return a map of all names within the object ($tinyname, $fullname, $name) mapped to the name.
-function collect_names(obj) {
-    return qbobj.walk(obj, function (carry, k, i, tcode, v, path) {
-        if (tcode === TCODES.OBJ) {
-            Object.keys(v).forEach(function (vk) {
-                if (NAME_PROPS[vk]) {
-                    var name = v[vk]
-                    typeof name === 'string' || errp('illegal type ' + (typeof name), path, vk)
-                    !carry[name] || errp('name used more than once', path, name)
-                    carry[name] = v.$n || v.$name || errp('missing name prop', path)    // ensure name if tinyname or fullname are set
-                }
-            })
-        }
-        return carry
-    }, {})
+function _typval2typ (props, opt, info) {
+    // check and handle $type/$value form
+    props.type || errp( 'missing $type property for $type/$value', info.path)
+    props.value || errp('missing $value property for $type/$value', info.path)
+    Object.keys(props).length === 2 || errp('$type/value form does not allow other type properties', info.path)
+    var ttype
+    (ttype = opt.lookupfn(props.type)) && ttype.name === 'typ' || errp('expected type "type" but got ' + ttype, info.path)
+    return _any2typ('$value', props.value, opt, info)
 }
 
+// map to normalize property names.  e.g. $n -> name, $type -> type...
+var DPROPS = dprops_map('$')
+
+function _any2typ(k, v, opt, info) {
+    v || errp('missing value', info.path, k)
+    var ret
+    switch (typeof v) {
+        case 'object':
+            var props = null
+            if (k !== null) { info.path.push(k) }
+            if (Array.isArray(v)) {
+                props = _arr2props(v, opt, info)
+            } else {
+                props = _normalize_props(v, info)
+                if (props.type || props.value) {
+                    // set return - we are done
+                    ret = _typval2typ(props, opt, info)
+                } else {
+                    var base = BASE_TYPES_BY_NAME[props.base || 'obj'] || errp('unknown base: ' + props.base, info.path)
+                    props.base = base.name
+                    props = _process_specific_props (props, opt, info)
+                    props = inherit_base(props, base, info)
+                }
+
+            }
+            if (!ret) {
+                ret = opt.createfn(props)
+                if (ret.name) {
+                    info.byname[ret.name] = ret
+                }
+            }
+            if (k !== null) { info.path.pop(k) }
+            break
+        case 'string':
+            ret = opt.lookupfn(v)
+            if (ret == null) {
+                info.unresolved[v] = 1
+                ret = v                     // leave as string for a second pass where we have all the types defined
+            }
+            break
+
+        default:
+            errp('unexpected value', info.path, k, valtype(v))
+    }
+    return ret
+}
+
+function inherit_base (tprops, base, info) {
+    ['name', 'fullname', 'tinyname'].forEach(function (nameprop) {
+        var name = tprops[nameprop]
+        name == null || name !== base[name] || errp("property '" + nameprop + "' must be different for type and base", info.path )
+    })
+    if (base.stip) {
+        !tprops.stip || err('stipulation merging not implemented')
+        tprops.stip = base.stip
+    }
+    return tprops
+}
+
+// convert the type-specific expressions into types ($array, $multi, custom fields...)
+function _process_specific_props (tprops, opt, info) {
+    switch (tprops.base) {
+        case 'arr':
+            tprops.array = tprops.array || [ '*' ]
+            tprops.array = tprops.array.map(function (v, i) { return _any2typ(i, v, opt, info) })
+            break
+        case 'obj':
+            if (tprops.fields) {
+                tprops.fields = qbobj.map(tprops.fields, null, function (k, v) { return _any2typ(k, v, opt, info)} )
+            }
+            if (tprops.pfields) {
+                tprops.pfields = qbobj.map(tprops.pfields, null, function (k, v) { return _any2typ(k, v, opt, info)} )
+            }
+            break
+        case 'mul':
+            tprops.multi = tprops.multi.map(function (v,i) { return _any2typ(i, v, opt, info) })
+            break
+        // other base types don't have extra props
+    }
+    return tprops
+}
+
+// collect, check, and standardize property names.  note that no new properties are added when given
+// a simple $type/$value object (properties are only added if custom fields or $array, $multi... are set).
+function _normalize_props (obj, info) {
+    var tprops = {}                 // type properties - can be passed to tbase.create() to create type objects
+    var fields = {}                 // custom-fields
+    var pfields = {}                // custom pattern fields (with '*')
+    var base_exclusive = null
+    var has_custom = false
+
+    Object.keys(obj).forEach(function (k) {
+        var v = obj[k]
+        if (k[0] === '$') {
+            var nk = DPROPS[k] || errp('unknown property', info.path, k)
+            tprops[nk] = v
+            // properties that set base - only one allowed
+            if ({mul:1, arr:1}[nk]) {
+                base_exclusive == null || errp(nk + ' cannot be set together with ' + base_exclusive, info.path)
+                base_exclusive = nk
+            }
+        } else {
+            has_custom = true
+            if (has_char(k, '*', '^')) {
+                pfields[k] = v
+            } else {
+                fields[k] = v
+            }
+        }
+    })
+
+    if (Object.keys(fields).length) { tprops.fields = fields }
+    if (Object.keys(pfields).length) { tprops.pfields = pfields }
+
+    if (tprops.base) {
+        // normalize base (before comparing with base_exclusive)
+        var base = BASE_TYPES_BY_NAME[tprops.base] || errp('unknown base type: ' + tprops.base, info.path)
+        tprops.base = base.name
+    }
+
+    if (base_exclusive) {
+        // fields like $array and $multi set the base to their value, but only one is allowed
+        tprops.base == null || tprops.base === base_exclusive || errp('mismatched base.  expected ' + base_exclusive + ' but got: ' + tprops.base, info.path)
+        !has_custom || err('custom (non-$) fields are only supported for objects, not ' + base_exclusive, info.path)
+        tprops.base = base_exclusive
+    }
+    return tprops
+}
+
+function _arr2props (arr, info) {
+    var items = arr.map(function (v,i) {
+        return _any2typ(i, v, info)
+    })
+    return { base: 'arr', array: items }
+}
+
+// convert an object to a set of types by name using the given transform to interpret types.
+// return the root object and types by name as an object:
+// { root: root-object, byname: defined-types-by-name, unresolved: array-of-unresolved-references }
 // Find all named types within the given type array or object (nested), collect them in an object and replace
 // them with name string references.  return:
 //
@@ -133,134 +268,16 @@ function collect_names(obj) {
 //      }
 //
 // While traversing, update all property names to the prop.name (from tiny or long forms) checking and removing the
-// '$' prefix and collect custom properties (non-dollar) into 'fields' and 'expr' objects, preparing for type creation.
+// '$' prefix and collect custom properties (non-dollar) into 'fields' and 'pfields' objects, preparing for type creation.
 // see tests for output examples.
 //
-function obj_by_name (obj, typstr_transform) {
-    // context is null, 'value', or 'fields' - influences interpretation of properties
-    var info = { path: [], byname: {}, typstr_transform: typstr_transform }
-    var root = process_any(null, obj, info, null)
-    return { root: root, byname: info.byname }
-}
-
-// normalize property names.  e.g. $n -> name, $type -> type...
-var DPROPS = dprops_map('$')
-
-function process_any(k, v, info, val_dst) {
-    v || errp('missing value', info.path, k)
-    var ret
-    switch (typeof v) {
-        case 'object':
-            if (k !== null) { info.path.push(k) }
-            if (Array.isArray(v)) {
-                ret = process_arr(v, info)
-            } else {
-                ret = process_obj(v, info, val_dst)
-            }
-            if (k !== null) { info.path.pop(k) }
-            break
-        case 'string':
-            ret = info.typstr_transform(v, info.path) || errp('unknown type', info.path, k, v)
-            break
-        default:
-            errp('unexpected value', info.path, k, valtype(v))
-    }
-    return ret
-}
-
-// a type object that may represent any type using base, value and custom (non-$) properties.
-function process_obj (obj, info, val_dst) {
-    var dst = val_dst || { base: null }        // collect normalized properties into this object, checking for collisions.  set base first because it's easier on the eyes when debugging
-
-    // collect, check, and standardize property names while resolving fields and field expressions
-    var special = { base: null, val: null, typ: null }  // use null as placeholder (not set yet, but is special prop)
-    Object.keys(obj).forEach(function (k) {
-        var v = obj[k]
-        if (k[0] === '$') {
-            var nk = DPROPS[k] || errp('unknown property', info.path, k)
-            if (special[nk] !== undefined) {
-                special[nk] = v
-            } else {
-                !dst[nk] || errp('property defined twice: under parent and within child', info.path, k)
-                dst[nk] = v     // non-special properties are transferred to dst as-is (no change)
-            }
-        } else {
-            if (has_char(k, '*', '^')) {
-                if (!dst.expr) { dst.expr =  {} }
-                !dst[k] || errp('expression defined twice', info.path, k)
-                dst.expr[k] = v
-            } else {
-                if (!dst.fields) { dst.fields = {} }
-                dst.fields[k] = v
-            }
-        }
-    })
-
-    if (special.typ) {
-        info.typstr_transform(special.typ, info.path) === 'typ' || errp('expected type "type" but got ' + special.typ, info.path)
-    }
-    if (special.base) {
-        dst.base = info.typstr_transform(special.base, info.path)
-    }
-    switch (dst.base) {
-        case 'arr':
-            dst.items || errp('array missing items', info.path)
-            dst.items = dst.items.map(function (v, i) { return process_any(i, v, info) })
-            break
-        case 'obj': case null:
-            if (dst.fields) {
-                dst.fields = qbobj.map(dst.fields, null, function (k, v) { return process_any(k, v, info)} )
-            }
-            if (dst.expr) {
-                dst.expr = qbobj.map(dst.expr, null, function (k, v) { return process_any(k, v, info)} )
-            }
-            break
-        // other base types require no special handling
-    }
-
-    if (special.val) {
-        Object.keys(dst).length === 1 && dst.base === null || errp('properties are not allowed with value ' + dst, info.path, '$val')
-        dst = process_any ('$val', special.val, info, dst)
-    } else {
-        if (typeof dst === 'object') {
-            dst.base = dst.base || 'obj'
-        }
-        // replace named objects with their names
-        if (dst.name) {
-            info.byname[dst.name] = dst
-            dst = dst.name
-        }
-    }
-
-    return dst
-}
-
-function process_arr (arr, info) {
-    var items = arr.map(function (v,i) {
-        return process_any(i, v, info)
-    })
-    return { base: 'arr', items: items }
-}
-
-// convert an object to a set of types by name using the given tset to interpret types.  return the root object and types by name as an object:
-// { root: ..., byname: types-by-name }
-function obj2typ (o, typstr_transform) {
-    if (typeof o === 'string') {
-        return { root: typstr_transform(o), byname: {} }
-    }
-    // other types are in user-object form
-    var names_map = collect_names(o)        // todo: pass base types - do not allow override
-    var ts_trans = function (n, path) {
-        // allow new names to override established names (typstr_transform)
-        return names_map[n] || typstr_transform(n) || errp('unknown type', path, n) // todo: check with base types
-    }
-
-    var ret = obj_by_name(o, ts_trans)        // convert arguments into standard properties, flattening named arguments.
-
-    ret.byname = qbobj.map(ret.byname, null, function (n, props) { return tbase.create(props) })
-    if (ret.root.base) { ret.root = tbase.create(ret.root) }
-
-    return ret
+function obj2typ (obj, opt) {
+    opt = opt || {}
+    opt.lookupfn = opt.lookupfn || tbase.lookup
+    opt.createfn = opt.createfn || tbase.create
+    var info = { path: [], byname: {},  unresolved: {} }
+    var root = _any2typ(null, obj, opt, info )
+    return { root: root, byname: info.byname, unresolved: info.unresolved }
 }
 
 function typ2obj (t, typstr_transform, opt) {
@@ -285,8 +302,8 @@ function typ2obj (t, typstr_transform, opt) {
                 copy_type_props(t, ret, opt)
             }
             qbobj.map(t.fields, null, function (k,v) { return typ2obj(v, typstr_transform, opt) }, {init: ret})
-            if (Object.keys(t.expr).length && !t.is_generic()) {
-                qbobj.map(t.expr, null, function (k,v) { return typ2obj(v, typstr_transform, opt) }, {init: ret})
+            if (Object.keys(t.pfields).length && !t.is_generic()) {
+                qbobj.map(t.pfields, null, function (k,v) { return typ2obj(v, typstr_transform, opt) }, {init: ret})
             }
             break
         case BASE_CODES['*']:
@@ -313,7 +330,6 @@ function err (msg) { throw Error(msg) }
 
 module.exports = {
     _has_char: has_char,
-    _obj_by_name: obj_by_name,
     obj2typ: obj2typ,
     typ2obj: function( v, typstr_transform, opt ) { return typ2obj(v, typstr_transform, assign({ tnf: 'name' }, opt)) }
 }

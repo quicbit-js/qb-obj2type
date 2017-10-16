@@ -1,3 +1,3 @@
 # qb1-type-obj
 
-Functions for converting types to and from generic objects/arrays.
+Functions for converting qb type objects to and from generic objects/arrays.
