@@ -15,13 +15,11 @@
 // OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 var tbase = require('qb1-type-base')
-var BASE_CODES = tbase.CODES
-var PROPS_BY_NAME = tbase.PROPS_BY_NAME
-var BASE_TYPES_BY_NAME = tbase.TYPES_BY_NAME
-
 var assign = require('qb-assign')
 var qbobj = require('qb1-obj')
-var TCODES = qbobj.TCODES
+
+var BASE_TYPES_BY_NAME = tbase.types().reduce(function (m,t) { m[t.name] = m[t.tinyname] = m[t.fullname] = t; return m }, {})
+var PROPS_BY_NAME = tbase.props().reduce(function (m,p) { m[p.name] = m[p.tinyname] = m[p.fullname] = p; return m }, {})
 
 // return true if string s has character c and is not preceded by an odd number of consecutive escapes e)
 function has_char (s, c, e) {
@@ -69,7 +67,7 @@ function copy_prop (n, v, dst, opt) {
     }
     if (!opt.incl || opt.incl[n]) {
         if (opt.tnf && opt.tnf !== 'name') {
-            n = tbase.PROPS_BY_NAME[n][opt.tnf]
+            n = PROPS_BY_NAME[n][opt.tnf]
         }
         dst['$' + n] = v
     }
@@ -79,7 +77,7 @@ function copy_prop (n, v, dst, opt) {
 // $s -> stip,          $stip -> stip,         $stipulations -> stip, ...
 function dprops_map (key_prefix) {
     return qbobj.map(
-        tbase.PROPS_BY_NAME,
+        PROPS_BY_NAME,
         function (name) { return key_prefix + name },
         function (name, prop) { return prop.name }
     )
@@ -131,19 +129,28 @@ function _any2typ(k, v, opt, info) {
             var props = null
             if (k !== null) { info.path.push(k) }
             if (Array.isArray(v)) {
-                props = _arr2props(v, opt, info)
-            } else {
-                props = _normalize_props(v, info)
-                if (props.type || props.value) {
-                    // set return - we are done
-                    ret = _typval2typ(props, opt, info)
+                if (v.length === 0) {
+                    // generic array
+                    ret = BASE_TYPES_BY_NAME.arr
                 } else {
-                    var base = BASE_TYPES_BY_NAME[props.base || 'obj'] || errp('unknown base: ' + props.base, info.path)
-                    props.base = base.name
-                    props = _process_specific_props (props, opt, info)
-                    props = inherit_base(props, base, info)
+                    props = _arr2props(v, opt, info)
                 }
-
+            } else {
+                if (Object.keys(v).length === 0) {
+                    // generic object
+                    ret = BASE_TYPES_BY_NAME.obj
+                } else {
+                    props = _normalize_props(v, info)
+                    if (props.type || props.value) {
+                        // set return - we are done
+                        ret = _typval2typ(props, opt, info)
+                    } else {
+                        var base = BASE_TYPES_BY_NAME[props.base || 'obj'] || errp('unknown base: ' + props.base, info.path)
+                        props.base = base.name
+                        props = _process_specific_props (props, opt, info)
+                        props = inherit_base(props, base, info)
+                    }
+                }
             }
             if (!ret) {
                 ret = opt.createfn(props)
@@ -280,56 +287,9 @@ function obj2typ (obj, opt) {
     return { root: root, byname: info.byname, unresolved: info.unresolved }
 }
 
-function typ2obj (t, typstr_transform, opt) {
-    var ret
-    switch (t.code) {
-        case BASE_CODES.arr:
-            var items = t.is_generic() ? [] : t.items.map(function (item) { return typ2obj(item, typstr_transform, opt) })
-
-            // return a simple array if there is only one property (the base)
-            if (has_props(t, opt)) {
-                ret = {}
-                copy_prop('base', typ2obj(t.base, typstr_transform, opt), ret, opt)
-                copy_type_props(t, ret, opt)
-                ret.$items = items
-            } else {
-                ret = items
-            }
-            break
-        case BASE_CODES.obj:
-            ret = {}
-            if (t.name !== t.base) {
-                copy_type_props(t, ret, opt)
-            }
-            qbobj.map(t.fields, null, function (k,v) { return typ2obj(v, typstr_transform, opt) }, {init: ret})
-            if (Object.keys(t.pfields).length && !t.is_generic()) {
-                qbobj.map(t.pfields, null, function (k,v) { return typ2obj(v, typstr_transform, opt) }, {init: ret})
-            }
-            break
-        case BASE_CODES['*']:
-        case BASE_CODES.blb: case BASE_CODES.boo: case BASE_CODES.byt: case BASE_CODES.dec:
-        case BASE_CODES.flt: case BASE_CODES.int: case BASE_CODES.mul: case BASE_CODES.num:
-        case BASE_CODES.str: case BASE_CODES.typ: case BASE_CODES.nul:
-        case BASE_CODES.tru: case BASE_CODES.fal:
-            if (t.name === t.base) {
-                ret = t[opt.tnf]            // base types as string
-            } else {
-                ret = {}
-                copy_prop('base', typ2obj(t.base, typstr_transform, opt), ret, opt)
-                copy_type_props(t, ret, opt)
-            }
-            break;
-        default:
-            typeof t === 'string' || err('unexpected value: ' + t)
-            ret = typstr_transform(t, opt) || err('unknown type: ' + t)
-    }
-    return ret
-}
-
 function err (msg) { throw Error(msg) }
 
 module.exports = {
     _has_char: has_char,
     obj2typ: obj2typ,
-    typ2obj: function( v, typstr_transform, opt ) { return typ2obj(v, typstr_transform, assign({ tnf: 'name' }, opt)) }
 }
