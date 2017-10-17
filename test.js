@@ -35,19 +35,19 @@ test('has_char', function (t) {
 
 function err (msg) { throw Error(msg) }
 
-test.only('obj_by_name - basic', function (t) {
+test('obj2typ - basic', function (t) {
     t.table_assert(
         [
-            [ 'obj',                                    'exp' ],
-            [ 's',                                      { name: 'str', base: 'str' } ],
-            [ 'str',                                    { name: 'str', base: 'str' } ],
-            [ 'string',                                 { name: 'str', base: 'str' } ],
-            [ { $type:'typ', $value: 's' },             { name: 'str', base: 'str' } ],
-            [ { $type:'typ', $value: 'str' },           { name: 'str', base: 'str' } ],
-            [ { $type:'typ', $value: 'string' },        { name: 'str', base: 'str' } ],
-            [ { $base: 's' },                           { base: 'str' } ],
-            [ { $base: 'str' },                         { base: 'str' } ],
-            [ { $base: 'string' },                      { base: 'str' } ],
+            [ 'obj',                                            'exp' ],
+            [ 's',                                              'str' ],
+            [ 'str',                                            'str' ],
+            [ 'string',                                         'str' ],
+            [ { $type:'typ', $value: 's' },                     'str' ],
+            [ { $type:'typ', $value: 'str' },                   'str' ],
+            [ { $type:'typ', $value: 'string' },                'str' ],
+            [ { $base: 's' },                                   { $base: 'str' } ],
+            [ { $base: 'str' },                                 { $base: 'str' } ],
+            [ { $base: 'string' },                              { $base: 'str' } ],
             // [ 'i',                              'int' ],
             // [ {},                               { base: 'obj' } ],
             // [ { $t: 't' },                      { base: 'obj' } ],
@@ -56,47 +56,30 @@ test.only('obj_by_name - basic', function (t) {
             // [ { $base: 'obj' },                 { base: 'obj' } ],
             // [ { $base: 'int' },                 { base: 'int' } ],
             // [ { $base: 'str' },                 { base: 'str' } ],
-            [ { id: 'number' },                         { base: 'obj', fields: { id: 'num' }, pfields: {} } ],
-            [ { $base: 'obj', id: 'n' },                { base: 'obj', fields: { id: 'num' }, pfields: {} } ],
-            [ { base: 'obj', id: 'n' },                 { base: 'obj', fields: { base: 'obj', id: 'num' }, pfields: {} } ],
-            [ [],                                       { base: 'arr', array: [] } ],
-            [ [ 'i' ],                                  { base: 'arr', array: [ 'int' ] } ],
-            [ [ { a: 's'} ],                            { base: 'arr', array: [ { base: 'obj', fields: { a: 'str' } } ] } ],
-            [ [ { a: [ 'i', 'n' ]} ],                   { base: 'arr', array: [ { base: 'obj', fields: { a: { base: 'arr', array: [ 'int', 'num' ] } } } ] } ],
-            [ { a: 'int', b: {x: 'string', y: ['int'] } },    { base: 'obj', fields: { a: 'int', b: { base: 'obj', fields: { x: 'str', y: { base: 'arr', array: ['int'] } } } } } ],
+            [ { id: 'number' },                                 { id: 'num' } ],
+            [ { $base: 'obj', id: 'n' },                        { id: 'num' } ],
+            [ { base: 'obj', id: 'n' },                         { base: 'obj', id: 'num' } ],
+            [ [],                                               [] ],
+            [ [ 'i' ],                                          [ 'int' ] ],
+            [ [ { a: 's'} ],                                    [ { a: 'str' } ] ],
+            [ [ { a: [ 'i', 'n' ]} ],                           [ { a: [ 'int', 'num' ] } ] ],
+            [ { a: 'int', b: {x: 'string', y: ['int'] } },      { a: 'int', b: { x: 'str', y: ['int'] } } ],
         ],
         function (obj) {
             var info = typobj.obj2typ(obj)
             Object.keys(info.byname).length === 0 || err('byname should be empty')
             Object.keys(info.unresolved).length === 0 || err('unresolved should be empty')
-            var res = qbobj.select(info.root, ['name', 'base', 'fields', 'pfields', 'arr'])
-            if (res.fields) { res.fields = qbobj.map(res.fields, null, function (k,v) { return v.name }) }
-            if (res.pfields) { res.pfields = qbobj.map(res.pfields, null, function (k,v) { return v.name }) }
-            return res
+            return info.root.obj({name_depth:0})
         }
     )
 })
 
-test('obj_by_name - errors', function (t) {
-
-    var types = {
-        i: 'int',
-        int: 'int',
-        o: 'obj',
-        obj: 'obj',
-        s: 'str',
-        str: 'str',
-        t: 'typ',
-        typ: 'typ',
-        v: 'val',
-        val: 'val',
-    }
-    var typstr_trans = function (n) { return types[n] || n }
+test('obj2typ - errors', function (t) {
     t.table_assert([
-        [ 'obj',                                'typstr_transform',              'exp' ],
-        [ { a: 'n', $v: { b: 's' } },           typstr_trans,                    /cannot define custom fields along with nested/ ],
-        [ { $base: 'obj', $v: { $base: 's' } },  typstr_trans,                   /property conflicts with parent property/ ],
-    ], typobj._obj_by_name, {assert: 'throws'})
+        [ 'obj',                                        'exp' ],
+        [ { a: 'n', $v: { b: 's' } },                   /missing \$type property/ ],
+        [ { $base: 'obj', $multi: ['str','int'] },      /mismatched base.  expected mul/ ],
+    ], typobj.obj2typ, {assert: 'throws'})
 })
 
 test('obj_by_name - named', function (t) {
@@ -108,20 +91,8 @@ test('obj_by_name - named', function (t) {
             ],
             [
                 // base inherited, not name/description
-                { $t: 'type', $v: { $n: 'xtype', $d: 'an example type', $base: 'i' }, $stip: {a:4} },     // inner $value
-                { root: { base: 'int', name: 'xtype' }, names: [], unresolved: [] }
-            ],
-            [
-                { $t: 'type', $v: { $n: 'xtype', $d: 'an example type', $base: 'i' } },     // inner $value
-                { root: { base: 'int', name: 'ytype' }, names: [ 'ytype' ], unresolved: [] }
-            ],
-            [
-                { $t: 'type', $n: 'xtype', $d: 'an example type', $base: 'i' },
-                { root: 'xtype', byname: { xtype: { base: 'int', name: 'xtype', desc: 'an example type' } } }
-            ],
-            [
-                { $n: 'xtype', $d: 'an example type', $base: 'i' },
-                { root: 'xtype', byname: { xtype: { base: 'int', name: 'xtype', desc: 'an example type' } } }
+                { $n: 'xtype', $d: 'an example type', $base: 'i', $stip: {a:4} },
+                { root: { $base: 'int', $name: 'xtype', $desc: 'an example type', $stip: { a: 4 } }, names: [ 'xtype' ], unresolved: [] }
             ],
             [
                 {
@@ -133,26 +104,10 @@ test('obj_by_name - named', function (t) {
                     },
                     c: 'foo'
                 },
-                // { t1: 't1', foo: 'fooby', object: 'obj' },
                 {
-                    root: 't1',
-                    byname: {
-                        t1: {
-                            base: 'obj',
-                            name: 't1', desc: 'a test type',
-                            fields: {
-                                a: 'int',
-                                b: {
-                                    base: 'obj',
-                                    fields: {
-                                        x: 'str',
-                                        y: {base: 'arr', array: ['int']}
-                                    }
-                                },
-                                c: 'fooby'
-                            }
-                        }
-                    }
+                    root: { $name: 't1', $desc: 'a test type', a: 'int', b: { x: 'str', y: [ 'int' ] }, c: 'foo' },
+                    names: [ 't1' ],
+                    unresolved: [ 'foo' ]
                 }
             ],
             [
@@ -166,30 +121,7 @@ test('obj_by_name - named', function (t) {
                     },
                     $stip: { $n: 'x', string: 'int' }
                 },
-                // { t1: 't1', x: 'x' },
-                {
-                    root: 't1',
-                    byname: {
-                        t1:    {
-                            name: 't1',
-                            base: 'obj',
-                            fields: {
-                                a: 'int',
-                                b: {
-                                    base: 'obj',
-                                    fields: {
-                                        x:'str',
-                                        y: {
-                                            base: 'arr',
-                                            array: ['int']
-                                        }
-                                    }
-                                }
-                            },
-                            stip: { $n: 'x', string: 'int' }
-                        }
-                    }
-                }
+                { root: { $name: 't1', $stip: { $n: 'x', string: 'int' }, a: 'int', b: { x: 'str', y: [ 'int' ] } }, names: [ 't1' ], unresolved: [] }
             ],
             [
                 {
@@ -202,38 +134,13 @@ test('obj_by_name - named', function (t) {
                         c: 'xt'
                     }
                 },
-                // [ { $n: 'xt', $d: 'an example type', $t: 'i' } ],  - need tset.put() to fix this
-                // { xt: 'xtype', t1: 't1', t2: 't2' },
-                {
-                    root: 't1',
-                    byname: {
-                        t1: {
-                            name: 't1',
-                            base: 'obj',
-                            fields: {
-                                a: 'int',
-                                b: 't2' }
-                        },
-                        t2: {
-                            name: 't2',
-                            base: 'obj',
-                            fields: {
-                                x: 'str',
-                                y: {
-                                    base: 'arr',
-                                    array: [ 'int' ]
-                                },
-                                c: 'xtype'
-                            }
-                        }
-                    }
-                }
+                { root: { $name: 't1', a: 'int', b: 't2' }, names: [ 't2', 't1' ], unresolved: [ 'xt' ] }
             ]
         ],
         function (obj) {
             var info = typobj.obj2typ(obj)
             return {
-                root: { base: info.root.base,  name: info.root.name || null },
+                root: info.root.obj(),
                 names: Object.keys(info.byname),
                 unresolved: Object.keys(info.unresolved)
             }

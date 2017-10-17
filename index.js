@@ -249,9 +249,9 @@ function _normalize_props (obj, info) {
     return tprops
 }
 
-function _arr2props (arr, info) {
+function _arr2props (arr, opt, info) {
     var items = arr.map(function (v,i) {
-        return _any2typ(i, v, info)
+        return _any2typ(i, v, opt, info)
     })
     return { base: 'arr', array: items }
 }
