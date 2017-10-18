@@ -76,10 +76,19 @@ test('obj2typ - basic', function (t) {
 
 test('obj2typ - errors', function (t) {
     t.table_assert([
-        [ 'obj',                                        'exp' ],
-        [ { a: 'n', $v: { b: 's' } },                   /missing \$type property/ ],
-        [ { $base: 'obj', $multi: ['str','int'] },      /mismatched base.  expected mul/ ],
-        [ { $base: 'obj', $array: ['int'], $multi: ['str','int'] },      /mul cannot be set together with arr/ ],
+        [ 'obj',                                                        'exp' ],
+        [ { $v: { b: 's' } },                                           /missing \$type property/ ],
+        [ { $t:'t', a: 'i' },                                           /missing \$value property/ ],
+        [ { $t:'tup', $v: 'i' },                                        /expected type "type"/ ],
+        [ { $t:'t', $v: 'i', a: 's' },                                  /\$type\/value form does not allow other type properties/ ],
+        [ { a: null },                                                  /missing value/ ],
+        [ { $milti: ['int','str'] },                                    /unknown property at \$milti/ ],
+        [ { $base: 'foo' },                                             /unknown base type/ ],
+        [ { $multi: ['str', 7 ] },                                      /unexpected value/ ],
+        [ { $multi: ['str', 'int' ], a: 'boo' },                        /custom \(non-\$\) fields are only supported for objects/ ],
+        [ { $base: 'obj', $multi: ['str','int'] },                      /mismatched base.  expected mul/ ],
+        [ { $base: 'obj', $array: ['int'], $multi: ['str','int'] },     /mul cannot be set together with arr/ ],
+        [ { $base: 'obj', $name: 'o', $tn: 'x', a: 'int'},              /name 'o' is a base type name/ ],
     ], typobj.obj2typ, {assert: 'throws'})
 })
 

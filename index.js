@@ -52,7 +52,7 @@ function pathstr (path, n, v) {
     if (n != null) {
         path = path.concat(n)
     }
-    return path.join('/') + (v ? ': ' + v : '')
+    return path.join('/') + (v ? (': ' + v) : '')
 }
 
 function errp (msg, path, n, v) {
@@ -96,10 +96,11 @@ function _any2typ(k, v, opt, info) {
                         // set return - we are done
                         ret = _typval2typ(props, opt, info)
                     } else {
-                        var base = BASE_TYPES_BY_NAME[props.base || 'obj'] || errp('unknown base: ' + props.base, info.path)
+                        // only now can we default the base to 'obj' (base value was checked if set in _normalize_props, above)
+                        var base = BASE_TYPES_BY_NAME[props.base || 'obj']
                         props.base = base.name
                         props = _process_specific_props (props, opt, info)
-                        props = inherit_base(props, base, info)
+                        props = inherit_base(props, BASE_TYPES_BY_NAME[props.base], info)
                     }
                 }
             }
@@ -128,12 +129,15 @@ function _any2typ(k, v, opt, info) {
 function inherit_base (tprops, base, info) {
     ['name', 'fullname', 'tinyname'].forEach(function (nameprop) {
         var name = tprops[nameprop]
-        name == null || name !== base[name] || errp("property '" + nameprop + "' must be different for type and base", info.path )
+        if (name) {
+            !BASE_TYPES_BY_NAME[name] || errp("name '" + name + "' is a base type name, it cannot be used for " + nameprop, info.path, nameprop )
+        }
     })
-    if (base.stip) {
-        !tprops.stip || err('stipulation merging not implemented')
-        tprops.stip = base.stip
-    }
+    // need this check when we have stipulations
+    // if (base.stip) {
+    //     !tprops.stip || err('stipulation merging not implemented')
+    //     tprops.stip = base.stip
+    // }
     return tprops
 }
 
@@ -160,7 +164,9 @@ function _process_specific_props (tprops, opt, info) {
             }
             break
         case 'mul':
+            info.path.push('$mul')
             tprops.mul = tprops.mul.map(function (v,i) { return _any2typ(i, v, opt, info) })
+            info.path.pop()
             break
         // other base types don't have extra props
     }
