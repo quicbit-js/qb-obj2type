@@ -34,45 +34,6 @@ function has_char (s, c, e) {
     return false
 }
 
-// return true if basic type properties have been set and will be shown
-function has_props (t, opt) {
-    if (t.name === t.base) {
-        return false
-    }
-    var excl = opt.excl
-    var incl = opt.incl
-
-    // no need to check fullname and tinyname when name is checked
-    return ['name', 'desc', 'stip'].find(function (p) {
-        return t[p] && !(excl && excl[p]) && (!incl || incl[p])
-    })
-}
-
-function copy_type_props (src, dst, opt) {
-    copy_prop('name', src.name, dst, opt)
-    copy_prop('desc', src.desc, dst, opt)
-    if (src.tinyname !== src.name) {
-        copy_prop('tinyname', src.tinyname, dst, opt)
-    }
-    if (src.fullname !== src.name) {
-        copy_prop('fullname', src.fullname, dst, opt)
-    }
-    copy_prop('stip', src.stip, dst, opt)
-}
-
-// sets $-property according to the opt.excl, opt.incl and opt.tnf settings
-function copy_prop (n, v, dst, opt) {
-    if (v == null || opt.excl && opt.excl[n]) {
-        return
-    }
-    if (!opt.incl || opt.incl[n]) {
-        if (opt.tnf && opt.tnf !== 'name') {
-            n = PROPS_BY_NAME[n][opt.tnf]
-        }
-        dst['$' + n] = v
-    }
-}
-
 // return a map of ($-prefixed) prop names to prop.name
 // $s -> stip,          $stip -> stip,         $stipulations -> stip, ...
 function dprops_map (key_prefix) {
@@ -81,16 +42,6 @@ function dprops_map (key_prefix) {
         function (name) { return key_prefix + name },
         function (name, prop) { return prop.name }
     )
-}
-
-// map for fast collection of name properties
-var NAME_PROPS = {
-    '$n':        1,
-    '$fn':       1,
-    '$tn':       1,
-    '$name':     1,
-    '$tinyname': 1,
-    '$fullname': 1,
 }
 
 function valtype (v) {
@@ -186,23 +137,30 @@ function inherit_base (tprops, base, info) {
     return tprops
 }
 
-// convert the type-specific expressions into types ($array, $multi, custom fields...)
+// convert the type-specific expressions into types ($arr, $mul, custom fields...)
 function _process_specific_props (tprops, opt, info) {
     switch (tprops.base) {
         case 'arr':
-            tprops.array = tprops.array || [ '*' ]
-            tprops.array = tprops.array.map(function (v, i) { return _any2typ(i, v, opt, info) })
+            tprops.arr = tprops.arr && tprops.arr.map(function (v, i) { return _any2typ(i, v, opt, info) })
+                || [BASE_TYPES_BY_NAME.any]
             break
         case 'obj':
+            var num_fields = 0
             if (tprops.fields) {
+                num_fields += Object.keys(tprops.fields).length
                 tprops.fields = qbobj.map(tprops.fields, null, function (k, v) { return _any2typ(k, v, opt, info)} )
             }
             if (tprops.pfields) {
+                num_fields += Object.keys(tprops.pfields).length
                 tprops.pfields = qbobj.map(tprops.pfields, null, function (k, v) { return _any2typ(k, v, opt, info)} )
+            }
+            if (num_fields === 0) {
+                // default empty objects to generic object behavior - so {} and {*:*} are equivalent, but {*:*} is a created type while {} is generic object.
+                tprops.pfields = {'*':BASE_TYPES_BY_NAME.any}
             }
             break
         case 'mul':
-            tprops.multi = tprops.multi.map(function (v,i) { return _any2typ(i, v, opt, info) })
+            tprops.mul = tprops.mul.map(function (v,i) { return _any2typ(i, v, opt, info) })
             break
         // other base types don't have extra props
     }
@@ -210,7 +168,7 @@ function _process_specific_props (tprops, opt, info) {
 }
 
 // collect, check, and standardize property names.  note that no new properties are added when given
-// a simple $type/$value object (properties are only added if custom fields or $array, $multi... are set).
+// a simple $type/$value object (properties are only added if custom fields or $arr, $mul... are set).
 function _normalize_props (obj, info) {
     var tprops = {}                 // type properties - can be passed to tbase.create() to create type objects
     var fields = {}                 // custom-fields
@@ -248,7 +206,7 @@ function _normalize_props (obj, info) {
     }
 
     if (base_exclusive) {
-        // fields like $array and $multi set the base to their value, but only one is allowed
+        // fields like $arr and $mul set the base to their value, but only one is allowed
         tprops.base == null || tprops.base === base_exclusive || errp('mismatched base.  expected ' + base_exclusive + ' but got: ' + tprops.base, info.path)
         !has_custom || err('custom (non-$) fields are only supported for objects, not ' + base_exclusive, info.path)
         tprops.base = base_exclusive
@@ -260,7 +218,7 @@ function _arr2props (arr, opt, info) {
     var items = arr.map(function (v,i) {
         return _any2typ(i, v, opt, info)
     })
-    return { base: 'arr', array: items }
+    return { base: 'arr', arr: items }
 }
 
 // convert an object to a set of types by name using the given transform to interpret types.

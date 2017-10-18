@@ -15,9 +15,6 @@
 // OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 var test = require('test-kit').tape()
-var qbobj = require('qb1-obj')
-var tbase = require('qb1-type-base')
-var CODES = tbase.CODES
 var typobj = require('.')
 
 test('has_char', function (t) {
@@ -49,14 +46,19 @@ test('obj2typ - basic', function (t) {
             [ { $base: 'str' },                                             { $base: 'str' } ],
             [ { $base: 'string' },                                          { $base: 'str' } ],
             [ [],                                                           [] ],
+            [ { $base: 'array'},                                            ['*'] ],        // functionally equivalent to base [], but a custom copy
+            [ { $a: ['*']},                                                 ['*'] ],        // functionally equivalent to base [], but a custom copy
             [ [ 'i' ],                                                      [ 'int' ] ],
             [ ['*','N','X','a','b','d','f','i','m','n','o','s','t','x'],    [ '*', 'nul', 'blb', [], 'boo', 'dec', 'flt', 'int', 'mul', 'num', {}, 'str', 'typ', 'byt' ] ],
             [ {},                                                           {} ],
-            [ { $base: 'o', '*':'*' },                           { '*': '*' } ],
+            [ { $base: 'object' },                                          {'*':'*'} ],        // functionally equivalent to plain object {}, but a custom copy
+            [ { $base: 'obj', '*':'*' },                                    {'*':'*'} ],        // functionally equivalent to plain object {}, but a custom copy
             [ { $base: 'o', id: 'n' },                                      { id: 'num' } ],
             [ { $base: 'integer' },                                         { $base: 'int' } ],
             [ { id: 'number' },                                             { id: 'num' } ],
-            [ { base: 'obj', id: 'n' },                                     { base: {}, id: 'num' } ],         // 'base' as a plain custom field
+            [ { $array: ['i','s']},                                         [ 'int','str'] ],
+            [ { $multi: ['i','N']},                                         { $mul: ['int', 'nul']} ],
+            [ { base: 'obj', id: 'n' },                                     { base: {}, id: 'num' } ],         // note, NOT $base, but a plain 'base' custom field
             [ [ { a: 's'} ],                                                [ { a: 'str' } ] ],
             [ [ { a: [{},[],'nul']} ],                                      [ { a: [{}, [], 'nul'] } ] ],
             [ [ { a: []} ],                                                 [ { a: [] } ] ],
@@ -77,6 +79,7 @@ test('obj2typ - errors', function (t) {
         [ 'obj',                                        'exp' ],
         [ { a: 'n', $v: { b: 's' } },                   /missing \$type property/ ],
         [ { $base: 'obj', $multi: ['str','int'] },      /mismatched base.  expected mul/ ],
+        [ { $base: 'obj', $array: ['int'], $multi: ['str','int'] },      /mul cannot be set together with arr/ ],
     ], typobj.obj2typ, {assert: 'throws'})
 })
 
