@@ -64,8 +64,7 @@ function _typval2typ (props, opt, info) {
     props.type || errp( 'missing $type property for $type/$value', info.path)
     props.value || errp('missing $value property for $type/$value', info.path)
     Object.keys(props).length === 2 || errp('$type/value form does not allow other type properties', info.path)
-    var ttype
-    (ttype = opt.lookupfn(props.type)) && ttype.name === 'typ' || errp('expected type "type" but got ' + ttype, info.path)
+    props.type === 'type' || props.type === 'typ' || props.type === 't' || errp('expected type "type" but got ' + props.type, info.path)
     return _any2typ('$value', props.value, opt, info)
 }
 
