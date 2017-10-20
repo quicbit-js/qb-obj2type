@@ -159,7 +159,28 @@ test('obj2type - named', function (t) {
     )
 })
 
-test('obj2type - example', function (t) {
+test('obj2typ - base_copies', function (t) {
+    var tobj = {a: 's', x:['i'], b: ['s'], c: {$mul: ['i', 's']}}
+    var typ1 = typobj.obj2typ(tobj).root
+    t.same(typ1.fields.a.name, 'str')
+    t.same(typ1.fields.b.arr[0].name, 'str')
+    t.equal(typ1.fields.a, typ1.fields.b.arr[0])
+
+    t.same(typ1.fields.c.mul[1].name, 'str')
+    t.equal(typ1.fields.a, typ1.fields.c.mul[1])
+
+    var typ2 = typobj.obj2typ(tobj, {base_copies: true}).root
+    t.same(typ2.fields.a.name, 'str')
+    t.same(typ2.fields.b.arr[0].name, 'str')
+    t.not(typ2.fields.a, typ2.fields.b.arr[0])
+
+    t.same(typ2.fields.c.mul[1].name, 'str')
+    t.not(typ2.fields.a, typ2.fields.c.mul[1])
+
+    t.end()
+})
+
+test('obj2typ - example', function (t) {
     t.table_assert(
         [
             [ 'obj',                                        'exp' ],

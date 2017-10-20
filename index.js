@@ -243,7 +243,7 @@ function _arr2props (arr, opt, info) {
 //
 function obj2typ (obj, opt) {
     opt = opt || {}
-    opt.lookupfn = opt.lookupfn || tbase.lookup
+    opt.lookupfn = opt.lookupfn || (opt.base_copies ? tbase.create_base : tbase.lookup)
     opt.createfn = opt.createfn || tbase.create
     var info = { path: [], byname: {},  unresolved: {} }
     var root = _any2typ(null, obj, opt, info )
