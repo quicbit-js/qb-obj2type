@@ -226,24 +226,15 @@ function _arr2props (arr, opt, info) {
     return { base: 'arr', arr: items }
 }
 
-// convert an object to a set of types by name using the given transform to interpret types.
+// convert an plain object type representation to a graph of type objects and name resolution info.
 // return the root object and types by name as an object:
 // { root: root-object, byname: defined-types-by-name, unresolved: array-of-unresolved-references }
-// Find all named types within the given type array or object (nested), collect them in an object and replace
-// them with name string references.  return:
+// Finds all named types within the given type array or object (nested)
 //
-//      {
-//          root:       the root object reference or object itself (if unnamed)
-//          byname:     named objects by name
-//      }
-//
-// While traversing, update all property names to the prop.name (from tiny or long forms) checking and removing the
-// '$' prefix and collect custom properties (non-dollar) into 'fields' and 'pfields' objects, preparing for type creation.
-// see tests for output examples.
-//
+// handles tinyname, name and fullname properties and types.  takes care of object $-props as well as $type/$value form.
 function obj2typ (obj, opt) {
     opt = opt || {}
-    opt.lookupfn = opt.lookupfn || (opt.base_copies ? tbase.create_base : tbase.lookup)
+    opt.lookupfn = opt.lookupfn || (opt.reuse_types ? tbase.lookup : tbase.create_base)
     opt.createfn = opt.createfn || tbase.create
     var info = { path: [], byname: {},  unresolved: {} }
     var root = _any2typ(null, obj, opt, info )
