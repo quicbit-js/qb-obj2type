@@ -157,9 +157,13 @@ function _process_specific_props (tprops, opt, info) {
                 num_fields += Object.keys(tprops.pfields).length
                 tprops.pfields = qbobj.map(tprops.pfields, null, function (k, v) { return _any2typ(k, v, opt, info)} )
             }
+            if (tprops.match_all) {
+                num_fields++
+                tprops.match_all = _any2typ('*', tprops.match_all, opt, info)
+            }
             if (num_fields === 0) {
                 // default empty objects to generic object behavior - so {} and {*:*} are equivalent, but {*:*} is a created type while {} is generic object.
-                tprops.pfields = {'*':BASE_TYPES_BY_NAME.any}
+                tprops.match_all = BASE_TYPES_BY_NAME.any
             }
             break
         case 'mul':
@@ -177,7 +181,8 @@ function _process_specific_props (tprops, opt, info) {
 function _normalize_props (obj, info) {
     var tprops = {}                 // type properties - can be passed to tbase.create() to create type objects
     var fields = {}                 // custom-fields
-    var pfields = {}                // custom pattern fields (with '*')
+    var pfields = {}                // custom pattern fields (with '*abc...')
+    var match_all = null            // set to type if the object contains the '*' match-all expression
     var base_exclusive = null
     var has_custom = false
 
@@ -193,7 +198,9 @@ function _normalize_props (obj, info) {
             }
         } else {
             has_custom = true
-            if (has_char(k, '*', '^')) {
+            if (k === '*') {
+                match_all = v
+            } else if (has_char(k, '*', '^')) {
                 pfields[k] = v
             } else {
                 fields[k] = v
@@ -203,6 +210,7 @@ function _normalize_props (obj, info) {
 
     if (Object.keys(fields).length) { tprops.fields = fields }
     if (Object.keys(pfields).length) { tprops.pfields = pfields }
+    if (match_all) { tprops.match_all = match_all }
 
     if (tprops.base) {
         // normalize base (before comparing with base_exclusive)
