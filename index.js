@@ -98,8 +98,13 @@ function _any2typ(k, v, opt, info) {
                         // only now can we default the base to 'obj' (base value was checked if set in _normalize_props, above)
                         var base = BASE_TYPES_BY_NAME[props.base || 'obj']
                         props.base = base.name
-                        props = _process_specific_props (props, opt, info)
-                        props = inherit_base(props, BASE_TYPES_BY_NAME[props.base], info)
+                        if (props.base === 'mul' && props.mul.length === 1) {
+                            // skip multi-type for single values
+                            ret = _any2typ(k, props.mul[0], opt, info)
+                        } else {
+                            props = _process_child_types (props, opt, info)
+                        }
+                        check_base_props(props, BASE_TYPES_BY_NAME[props.base], info)
                     }
                 }
             }
@@ -125,7 +130,7 @@ function _any2typ(k, v, opt, info) {
     return ret
 }
 
-function inherit_base (tprops, base, info) {
+function check_base_props (tprops, base, info) {
     ['name', 'fullname', 'tinyname'].forEach(function (nameprop) {
         var name = tprops[nameprop]
         if (name) {
@@ -141,7 +146,7 @@ function inherit_base (tprops, base, info) {
 }
 
 // convert the type-specific expressions into types ($arr, $mul, custom fields...)
-function _process_specific_props (tprops, opt, info) {
+function _process_child_types (tprops, opt, info) {
     switch (tprops.base) {
         case 'arr':
             tprops.arr = tprops.arr && tprops.arr.map(function (v, i) { return _any2typ(i, v, opt, info) })

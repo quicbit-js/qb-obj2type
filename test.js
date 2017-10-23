@@ -180,6 +180,26 @@ test('obj2typ - reuse_types', function (t) {
     t.end()
 })
 
+test ('obj2typ invisible multi-type', function (t) {
+    // to support dynamically adding to multi-type, we gracefully handle multi-types with only a single item...
+    // by showing them as that item only (no multi-type).
+    t.table_assert(
+        [
+            [ 'obj',                                                            'exp' ],
+            [ { $multi: ['i'] },                                                'int' ],
+            [ { $multi: [['i']] },                                              [ 'int' ] ],
+            [ [ { $multi: ['i'] } ],                                            [ 'int' ] ],
+            [ [ { a: { $multi: ['i'] } } ],                                     [ { a: 'int' } ] ],
+        ],
+        function (obj) {
+            var info = typobj.obj2typ(obj)
+            Object.keys(info.byname).length === 0 || err('byname should be empty')
+            Object.keys(info.unresolved).length === 0 || err('unresolved should be empty')
+            return info.root.obj({name_depth:0})
+        }
+    )
+})
+
 test('obj2typ - example', function (t) {
     t.table_assert(
         [
