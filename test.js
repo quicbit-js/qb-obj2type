@@ -17,19 +17,6 @@
 var test = require('test-kit').tape()
 var typobj = require('.')
 
-test('has_char', function (t) {
-    t.table_assert([
-        [ 's',          'c',      'e',       'exp' ],
-        [ 'abc',        'd',      '^',       false ],
-        [ 'abc',        'a',      '^',       true ],
-        [ 'abc',        'b',      '^',       true ],
-        [ 'abc',        'c',      '^',       true ],
-        [ 'ab^c',       'c',      '^',       false ],
-        [ 'ab^^c',      'c',      '^',       true ],
-        [ 'ab^^^c',     'c',      '^',       false ],
-    ], typobj._has_char)
-})
-
 function err (msg) { throw Error(msg) }
 
 test('obj2typ - basic', function (t) {

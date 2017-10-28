@@ -21,19 +21,6 @@ var qbobj = require('qb1-obj')
 var BASE_TYPES_BY_NAME = tbase.types().reduce(function (m,t) { m[t.name] = m[t.tinyname] = m[t.fullname] = t; return m }, {})
 var PROPS_BY_NAME = tbase.props().reduce(function (m,p) { m[p.name] = m[p.tinyname] = m[p.fullname] = p; return m }, {})
 
-// return true if string s has character c and is not preceded by an odd number of consecutive escapes e)
-function has_char (s, c, e) {
-    var i = 0
-    while ((i = s.indexOf(c, i)) !== -1) {
-        for (var n = 1; s[i-n] === e; n++) {}  // n = preceeding escape count (+1)
-        if (n % 2) {
-            return true
-        }
-        i++
-    }
-    return false
-}
-
 // return a map of ($-prefixed) prop names to prop.name
 // $s -> stip,          $stip -> stip,         $stipulations -> stip, ...
 function dprops_map (key_prefix) {
@@ -81,14 +68,14 @@ function _any2typ(k, v, opt, info) {
             if (Array.isArray(v)) {
                 if (v.length === 0) {
                     // generic array
-                    ret = BASE_TYPES_BY_NAME.arr
+                    ret = opt.lookupfn('arr')
                 } else {
                     props = _arr2props(v, opt, info)
                 }
             } else {
                 if (Object.keys(v).length === 0) {
                     // generic object
-                    ret = BASE_TYPES_BY_NAME.obj
+                    ret = opt.lookupfn('obj')
                 } else {
                     props = _normalize_props(v, info)
                     if (props.type || props.value) {
@@ -149,27 +136,14 @@ function check_base_props (tprops, base, info) {
 function _process_child_types (tprops, opt, info) {
     switch (tprops.base) {
         case 'arr':
-            tprops.arr = tprops.arr && tprops.arr.map(function (v, i) { return _any2typ(i, v, opt, info) })
-                || [BASE_TYPES_BY_NAME.any]
+            tprops.arr =
+                tprops.arr && tprops.arr.map(function (v, i) { return _any2typ(i, v, opt, info) })
+                || [opt.lookupfn('*')]
             break
         case 'obj':
-            var num_fields = 0
-            if (tprops.fields) {
-                num_fields += Object.keys(tprops.fields).length
-                tprops.fields = qbobj.map(tprops.fields, null, function (k, v) { return _any2typ(k, v, opt, info)} )
-            }
-            if (tprops.pfields) {
-                num_fields += Object.keys(tprops.pfields).length
-                tprops.pfields = qbobj.map(tprops.pfields, null, function (k, v) { return _any2typ(k, v, opt, info)} )
-            }
-            if (tprops.match_all) {
-                num_fields++
-                tprops.match_all = _any2typ('*', tprops.match_all, opt, info)
-            }
-            if (num_fields === 0) {
-                // default empty objects to generic object behavior - so {} and {*:*} are equivalent, but {*:*} is a created type while {} is generic object.
-                tprops.match_all = BASE_TYPES_BY_NAME.any
-            }
+            tprops.obj =
+                tprops.obj && qbobj.map(tprops.obj, null, function (k, v) { return _any2typ(k, v, opt, info)} )
+                || { '*': opt.lookupfn('*') }
             break
         case 'mul':
             info.path.push('$mul')
@@ -185,11 +159,8 @@ function _process_child_types (tprops, opt, info) {
 // a simple $type/$value object (properties are only added if custom fields or $arr, $mul... are set).
 function _normalize_props (obj, info) {
     var tprops = {}                 // type properties - can be passed to tbase.create() to create type objects
-    var fields = {}                 // custom-fields
-    var pfields = {}                // custom pattern fields (with '*abc...')
-    var match_all = null            // set to type if the object contains the '*' match-all expression
+    var obj_fields = {}             // non-$ fields (are intepreted as object fields)
     var base_exclusive = null
-    var has_custom = false
 
     Object.keys(obj).forEach(function (k) {
         var v = obj[k]
@@ -202,20 +173,15 @@ function _normalize_props (obj, info) {
                 base_exclusive = nk
             }
         } else {
-            has_custom = true
-            if (k === '*') {
-                match_all = v
-            } else if (has_char(k, '*', '^')) {
-                pfields[k] = v
-            } else {
-                fields[k] = v
-            }
+            obj_fields[k] = v
         }
     })
 
-    if (Object.keys(fields).length) { tprops.fields = fields }
-    if (Object.keys(pfields).length) { tprops.pfields = pfields }
-    if (match_all) { tprops.match_all = match_all }
+    if (Object.keys(obj_fields).length) {
+        // note that 'obj' has similar meaning to 'arr' or 'mul', but it is not part of
+        // the public object protocol (doesn't have public Property and is only set by creating non-$ fields.)
+        tprops.obj = obj_fields
+    }
 
     if (tprops.base) {
         // normalize base (before comparing with base_exclusive)
@@ -226,7 +192,7 @@ function _normalize_props (obj, info) {
     if (base_exclusive) {
         // fields like $arr and $mul set the base to their value, but only one is allowed
         tprops.base == null || tprops.base === base_exclusive || errp('mismatched base.  expected ' + base_exclusive + ' but got: ' + tprops.base, info.path)
-        !has_custom || err('custom (non-$) fields are only supported for objects, not ' + base_exclusive, info.path)
+        Object.keys(obj_fields).length === 0 || err('custom (non-$) fields are only supported for objects, not ' + base_exclusive, info.path)
         tprops.base = base_exclusive
     }
     return tprops
@@ -257,6 +223,5 @@ function obj2typ (obj, opt) {
 function err (msg) { throw Error(msg) }
 
 module.exports = {
-    _has_char: has_char,
     obj2typ: obj2typ,
 }
