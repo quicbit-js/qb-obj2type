@@ -213,8 +213,9 @@ function _arr2props (arr, opt, info) {
 // handles tinyname, name and fullname properties and types.  takes care of object $-props as well as $type/$value form.
 function obj2typ (obj, opt) {
     opt = opt || {}
-    opt.lookupfn = opt.lookupfn || (opt.reuse_types ? tbase.lookup : tbase.create_base)
-    opt.createfn = opt.createfn || tbase.create
+    var reuse_types = !!opt.reuse_types
+    opt.createfn = opt.createfn || function (p) { return tbase.create(p, {link_children: reuse_types})}
+    opt.lookupfn = opt.lookupfn || function (n) { return tbase.lookup(n, (reuse_types ? null : {create_opt: {link_children: true}})) }
     var info = { path: [], byname: {},  unresolved: {} }
     var root = _any2typ(null, obj, opt, info )
     return { root: root, byname: info.byname, unresolved: info.unresolved }
