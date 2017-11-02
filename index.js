@@ -104,6 +104,7 @@ function _any2typ(k, v, opt, info) {
             if (k !== null) { info.path.pop(k) }
             break
         case 'string':
+            !{'m':1,'mul':1,'multi':1}[v] || err('multi type "' + v + '" is a general type - not concrete')
             ret = opt.lookupfn(v)
             if (ret == null) {
                 info.unresolved[v] = 1
@@ -214,7 +215,7 @@ function _arr2props (arr, opt, info) {
 function obj2typ (obj, opt) {
     opt = opt || {}
     var reuse_types = !!opt.reuse_types
-    opt.createfn = opt.createfn || function (p) { return tbase.create(p, {link_children: reuse_types})}
+    opt.createfn = opt.createfn || function (p) { return tbase.create(p, {link_children: !reuse_types})}
     opt.lookupfn = opt.lookupfn || function (n) { return tbase.lookup(n, (reuse_types ? null : {create_opt: {link_children: true}})) }
     var info = { path: [], byname: {},  unresolved: {} }
     var root = _any2typ(null, obj, opt, info )

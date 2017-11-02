@@ -36,7 +36,8 @@ test('obj2typ - basic', function (t) {
             [ { $base: 'array'},                                            ['*'] ],        // functionally equivalent to base [], but a custom copy
             [ { $a: ['*']},                                                 ['*'] ],        // functionally equivalent to base [], but a custom copy
             [ [ 'i' ],                                                      [ 'int' ] ],
-            [ ['*','N','X','a','b','d','f','i','m','n','o','s','t','x'],    [ '*', 'nul', 'blb', [], 'boo', 'dec', 'flt', 'int', 'mul', 'num', {}, 'str', 'typ', 'byt' ] ],
+            // not multi-type - (which is not a concrete type)
+            [ ['*','N','X','a','b','d','f','i','n','o','s','t','x'],    [ '*', 'nul', 'blb', [], 'boo', 'dec', 'flt', 'int', 'num', {}, 'str', 'typ', 'byt' ] ],
             [ {},                                                           {} ],
             [ { $base: 'object' },                                          {'*':'*'} ],        // functionally equivalent to plain object {}, but a custom copy
             [ { $base: 'obj', '*':'*' },                                    {'*':'*'} ],        // functionally equivalent to plain object {}, but a custom copy
