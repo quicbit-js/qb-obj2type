@@ -104,7 +104,7 @@ function _any2typ(k, v, opt, info) {
             if (k !== null) { info.path.pop(k) }
             break
         case 'string':
-            !{'m':1,'mul':1,'multi':1}[v] || err('multi type "' + v + '" is a general type - not concrete')
+            !{'m':1,'mul':1,'multi':1}[v] || err('multi type "' + v + '" is not a stand-alone type')
             ret = opt.lookupfn(v)
             if (ret == null) {
                 info.unresolved[v] = 1
@@ -212,11 +212,26 @@ function _arr2props (arr, opt, info) {
 // Finds all named types within the given type array or object (nested)
 //
 // handles tinyname, name and fullname properties and types.  takes care of object $-props as well as $type/$value form.
+//
+// opt
+//      fresh_copy      true by default.  create a fresh copy to decorate your tree with more information.
+//                      if false, the tree will re-use IMMUTABLE nodes for common base types (str, int, nul, any, [*], {*:*}).
+//
+//      link_children   true by default.  linking children adds a parent link and parent_ctx (key or index) information
+//                      to each child which allows path() to work on any child node.  fresh_copy cannot be set to false when using link_children.
+//                      JSON.stringify will fail on trees with link_children because of the cycles.
+//
+//      createfn        plug in your own create-node function with same signature as qb1-type-base create (props, opt)
+//
+//      lookupfn        plug in your own type lookup function with same signature as qb1-type-base lookup (name, opt)
+//
 function obj2typ (obj, opt) {
     opt = opt || {}
-    var reuse_types = !!opt.reuse_types
-    opt.createfn = opt.createfn || function (p) { return tbase.create(p, {link_children: !reuse_types})}
-    opt.lookupfn = opt.lookupfn || function (n) { return tbase.lookup(n, (reuse_types ? null : {create_opt: {link_children: true}})) }
+    var copy = opt.fresh_copy == null || opt.fresh_copy
+    var link = opt.link_children == null ? copy : opt.link_children         // turn of linking if fresh_copy is false
+    copy || !link || err('cannot link_children in type tree if fresh_copy is false')
+    opt.createfn = opt.createfn || function (p) { return tbase.create(p, {link_children: link}) }
+    opt.lookupfn = opt.lookupfn || function (n) { return tbase.lookup(n, ( copy ? {create_opt: {link_children: link}} : null )) }
     var info = { path: [], byname: {},  unresolved: {} }
     var root = _any2typ(null, obj, opt, info )
     return { root: root, byname: info.byname, unresolved: info.unresolved }

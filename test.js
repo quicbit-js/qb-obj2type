@@ -64,19 +64,21 @@ test('obj2typ - basic', function (t) {
 
 test('obj2typ - errors', function (t) {
     t.table_assert([
-        [ 'obj',                                                        'exp' ],
-        [ { $v: { b: 's' } },                                           /missing \$type property/ ],
-        [ { $t:'t', a: 'i' },                                           /missing \$value property/ ],
-        [ { $t:'tup', $v: 'i' },                                        /expected type "type"/ ],
-        [ { $t:'t', $v: 'i', a: 's' },                                  /\$type\/value form does not allow other type properties/ ],
-        [ { a: null },                                                  /missing value/ ],
-        [ { $milti: ['int','str'] },                                    /unknown property at \$milti/ ],
-        [ { $base: 'foo' },                                             /unknown base type/ ],
-        [ { $multi: ['str', 7 ] },                                      /unexpected value/ ],
-        [ { $multi: ['str', 'int' ], a: 'boo' },                        /custom \(non-\$\) fields are only supported for objects/ ],
-        [ { $base: 'obj', $multi: ['str','int'] },                      /mismatched base.  expected mul/ ],
-        [ { $base: 'obj', $array: ['int'], $multi: ['str','int'] },     /mul cannot be set together with arr/ ],
-        [ { $base: 'obj', $name: 'o', $tn: 'x', a: 'int'},              /name 'o' is a base type name/ ],
+        [ 'obj',                                                    'opt',    'exp' ],
+        [ { $v: { b: 's' } },                                       null,     /missing \$type property/ ],
+        [ { $t:'t', a: 'i' },                                       null,     /missing \$value property/ ],
+        [ { $t:'tup', $v: 'i' },                                    null,     /expected type "type"/ ],
+        [ { $t:'t', $v: 'i', a: 's' },                              null,     /\$type\/value form does not allow other type properties/ ],
+        [ { a: null },                                              null,     /missing value/ ],
+        [ { a: 'mul' },                                             null,     /multi type "mul" is not a stand-alone type/ ],
+        [ { $milti: ['int','str'] },                                null,     /unknown property at \$milti/ ],
+        [ { $base: 'foo' },                                         null,     /unknown base type/ ],
+        [ { $multi: ['str', 7 ] },                                  null,     /unexpected value/ ],
+        [ { $multi: ['str', 'int' ], a: 'boo' },                    null,     /custom \(non-\$\) fields are only supported for objects/ ],
+        [ { $base: 'obj', $multi: ['str','int'] },                  null,     /mismatched base.  expected mul/ ],
+        [ { $base: 'obj', $array: ['int'], $multi: ['str','int'] }, null,     /mul cannot be set together with arr/ ],
+        [ { $base: 'obj', $name: 'o', $tn: 'x', a: 'int'},          null,     /name 'o' is a base type name/ ],
+        [ { $base: 'obj'},        {fresh_copy:false, link_children:true},     /cannot link_children in type tree if fresh_copy is false/ ],
     ], typobj.obj2typ, {assert: 'throws'})
 })
 
@@ -147,9 +149,9 @@ test('obj2type - named', function (t) {
     )
 })
 
-test('obj2typ - reuse_types', function (t) {
+test('obj2typ - copy', function (t) {
     var tobj = {a: 's', x:['i'], b: ['s'], c: {$mul: ['i', 's']}}
-    var typ1 = typobj.obj2typ(tobj, {reuse_types: true}).root
+    var typ1 = typobj.obj2typ(tobj, {fresh_copy: false}).root
     t.same(typ1.fields.a.name, 'str')
     t.same(typ1.fields.b.arr[0].name, 'str')
     t.equal(typ1.fields.a, typ1.fields.b.arr[0])
