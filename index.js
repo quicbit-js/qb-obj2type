@@ -15,8 +15,7 @@
 // OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 var tbase = require('qb1-type-base')
-var assign = require('qb-assign')
-var qbobj = require('qb1-obj')
+var qbobj = require('qb-obj')
 
 var BASE_TYPES_BY_NAME = tbase.types().reduce(function (m,t) { m[t.name] = m[t.tinyname] = m[t.fullname] = t; return m }, {})
 var PROPS_BY_NAME = tbase.props().reduce(function (m,p) { m[p.name] = m[p.tinyname] = m[p.fullname] = p; return m }, {})
@@ -101,7 +100,7 @@ function _any2typ(k, v, opt, info) {
                     info.byname[ret.name] = ret
                 }
             }
-            if (k !== null) { info.path.pop(k) }
+            if (k !== null) { info.path.pop() }
             break
         case 'string':
             !{'m':1,'mul':1,'multi':1}[v] || err('multi type "' + v + '" is not a stand-alone type')
