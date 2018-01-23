@@ -6,12 +6,13 @@
   "url": "https://github.com/quicbit-js/qb1-type-obj/issues",
   "email": "support@quicbit.com",
   "repository": "quicbit-js/qb1-type-obj",
+  "dependencies": {
+    "qb-obj": "^1.0.2",
+    "qb1-type-base": "^1.0.0"
+  },
   "devDependencies": {
-    "qb-assign": "^1.0.0",
-    "qb1-obj": "^1.0.0",
-    "qb1-type-base": "^1.0.0",
-    "tape": "^4.6.3",
-    "test-kit": "^2.5.2"
+    "tape": "^4.8.0",
+    "test-kit": "^2.7.2"
   },
   "scripts": {
     "test": "tape test.js",
@@ -26,6 +27,10 @@
     "quicbit",
     "data",
     "performance"
+  ],
+  "files": [
+    "index.js",
+    "test.js"
   ],
   "author": "Matthew Voss",
   "license": "ISC"
