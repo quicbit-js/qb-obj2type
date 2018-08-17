@@ -29,6 +29,8 @@ function dprops_map (key_prefix) {
         function (name, prop) { return prop.name }
     )
 }
+// map to normalize property names.  e.g. $n -> name, $type -> type...
+var DPROPS = dprops_map('$')
 
 function valtype (v) {
     return v + ' ' + Object.prototype.toString.call(v)
@@ -54,9 +56,6 @@ function _typval2typ (props, opt, info) {
     return _any2typ('$value', props.value, opt, info)
 }
 
-// map to normalize property names.  e.g. $n -> name, $type -> type...
-var DPROPS = dprops_map('$')
-
 function _any2typ(k, v, opt, info) {
     v || errp('missing value', info.path, k)
     var ret
@@ -76,7 +75,7 @@ function _any2typ(k, v, opt, info) {
                     // generic object
                     ret = opt.lookupfn('obj')
                 } else {
-                    props = _normalize_props(v, info)
+                    props = _normalize_props(v, opt, info)
                     if (props.type || props.value) {
                         // set return - we are done
                         ret = _typval2typ(props, opt, info)
@@ -95,7 +94,7 @@ function _any2typ(k, v, opt, info) {
                 }
             }
             if (!ret) {
-                ret = opt.createfn(props)
+                ret = opt.createfn(props, opt)
                 if (ret.name) {
                     info.byname[ret.name] = ret
                 }
@@ -157,7 +156,7 @@ function _process_child_types (tprops, opt, info) {
 
 // collect, check, and standardize property names.  note that no new properties are added when given
 // a simple $type/$value object (properties are only added if custom fields or $arr, $mul... are set).
-function _normalize_props (obj, info) {
+function _normalize_props (obj, opt, info) {
     var tprops = {}                 // type properties - can be passed to tbase.create() to create type objects
     var obj_fields = {}             // non-$ fields (are intepreted as object fields)
     var base_exclusive = null
@@ -165,7 +164,7 @@ function _normalize_props (obj, info) {
     Object.keys(obj).forEach(function (k) {
         var v = obj[k]
         if (k[0] === '$') {
-            var nk = DPROPS[k] || errp('unknown property', info.path, k)
+            var nk = DPROPS[k] || opt.custom_props && opt.custom_props[k] || errp('unknown property', info.path, k)
             tprops[nk] = v
             // properties that set base - only one allowed
             if ({mul:1, arr:1}[nk]) {
@@ -229,7 +228,7 @@ function obj2typ (obj, opt) {
     var copy = opt.fresh_copy == null || opt.fresh_copy
     var link = opt.link_children == null ? copy : opt.link_children         // turn of linking if fresh_copy is false
     copy || !link || err('cannot link_children in type tree if fresh_copy is false')
-    opt.createfn = opt.createfn || function (p) { return tbase.create(p, {link_children: link}) }
+    opt.createfn = opt.createfn || function (p) { return tbase.create(p, {link_children: link, custom_props: opt.custom_props}) }
     opt.lookupfn = opt.lookupfn || function (n) { return tbase.lookup(n, ( copy ? {create_opt: {link_children: link}} : null )) }
     var info = { path: [], byname: {},  unresolved: {} }
     var root = _any2typ(null, obj, opt, info )

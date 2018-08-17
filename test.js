@@ -62,6 +62,22 @@ test('obj2typ - basic', function (t) {
     )
 })
 
+test('obj2typ - opt', function (t) {
+    t.table_assert(
+        [
+            [ 'obj',                        'opt',                              'exp' ],
+            [ { $hash: 5, a: 's' },     {custom_props: {$hash:'hash'}},   { $hash: 5, a: 'str' } ],
+            [ { $hash: 5, $arr: ['n'] },     {custom_props: {$hash:'hash'}},   { $hash: 5, $arr: ['num'] } ],
+        ],
+        function (obj, opt) {
+            var info = typobj.obj2typ(obj, opt)
+            Object.keys(info.byname).length === 0 || err('byname should be empty')
+            Object.keys(info.unresolved).length === 0 || err('unresolved should be empty')
+            return info.root.obj({name_depth:0})
+        }
+    )
+})
+
 test('obj2typ - errors', function (t) {
     t.table_assert([
         [ 'obj',                                                    'opt',    'exp' ],
