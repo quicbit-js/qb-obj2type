@@ -55,7 +55,7 @@ test('obj2typ - basic', function (t) {
         ],
         function (obj) {
             var info = typobj.obj2typ(obj)
-            Object.keys(info.byname).length === 0 || err('byname should be empty')
+            Object.keys(info.defined_types).length === 0 || err('defined_types should be empty')
             Object.keys(info.unresolved).length === 0 || err('unresolved should be empty')
             return info.root.obj({name_depth:0})
         }
@@ -71,7 +71,7 @@ test('obj2typ - opt', function (t) {
         ],
         function (obj, opt) {
             var info = typobj.obj2typ(obj, opt)
-            Object.keys(info.byname).length === 0 || err('byname should be empty')
+            Object.keys(info.defined_types).length === 0 || err('defined_types should be empty')
             Object.keys(info.unresolved).length === 0 || err('unresolved should be empty')
             return info.root.obj({name_depth:0})
         }
@@ -158,7 +158,7 @@ test('obj2type - named', function (t) {
             var info = typobj.obj2typ(obj)
             return {
                 root: info.root.obj(),
-                names: Object.keys(info.byname),
+                names: Object.keys(info.defined_types),
                 unresolved: Object.keys(info.unresolved)
             }
         }
@@ -199,7 +199,7 @@ test ('obj2typ invisible multi-type', function (t) {
         ],
         function (obj) {
             var info = typobj.obj2typ(obj)
-            Object.keys(info.byname).length === 0 || err('byname should be empty')
+            Object.keys(info.defined_types).length === 0 || err('defined_types should be empty')
             Object.keys(info.unresolved).length === 0 || err('unresolved should be empty')
             return info.root.obj({name_depth:0})
         }
@@ -237,7 +237,7 @@ test('obj2typ - example', function (t) {
             var info = typobj.obj2typ(obj)
             return {
                 root: info.root.obj(),
-                names: Object.keys(info.byname),
+                names: Object.keys(info.defined_types),
                 unresolved: Object.keys(info.unresolved)
             }
         }

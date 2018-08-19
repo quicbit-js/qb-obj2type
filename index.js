@@ -96,7 +96,7 @@ function _any2typ(k, v, opt, info) {
             if (!ret) {
                 ret = opt.createfn(props, opt)
                 if (ret.name) {
-                    info.byname[ret.name] = ret
+                    info.defined_types[ret.name] = ret
                 }
             }
             if (k !== null) { info.path.pop() }
@@ -206,7 +206,7 @@ function _arr2props (arr, opt, info) {
 
 // convert an plain object type representation to a graph of type objects and name resolution info.
 // return the root object and types by name as an object:
-// { root: root-object, byname: defined-types-by-name, unresolved: array-of-unresolved-references }
+// { root: root-object, defined_types: defined-types-by-name, unresolved: array-of-unresolved-references }
 // Finds all named types within the given type array or object (nested)
 //
 // handles tinyname, name and fullname properties and types.  takes care of object $-props as well as $type/$value form.
@@ -230,9 +230,9 @@ function obj2typ (obj, opt) {
     copy || !link || err('cannot link_children in type tree if fresh_copy is false')
     opt.createfn = opt.createfn || function (p) { return tbase.create(p, {link_children: link, custom_props: opt.custom_props}) }
     opt.lookupfn = opt.lookupfn || function (n) { return tbase.lookup(n, ( copy ? {create_opt: {link_children: link}} : null )) }
-    var info = { path: [], byname: {},  unresolved: {} }
+    var info = { path: [], defined_types: {},  unresolved: {} }
     var root = _any2typ(null, obj, opt, info )
-    return { root: root, byname: info.byname, unresolved: info.unresolved }
+    return { root: root, defined_types: info.defined_types, unresolved: info.unresolved }
 }
 
 function err (msg) { throw Error(msg) }
