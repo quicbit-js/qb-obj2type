@@ -1,6 +1,6 @@
 // Software License Agreement (ISC License)
 //
-// Copyright (c) 2017, Matthew Voss
+// Copyright (c) 2017-2018, Matthew Voss
 //
 // Permission to use, copy, modify, and/or distribute this software for
 // any purpose with or without fee is hereby granted, provided that the
@@ -15,7 +15,7 @@
 // OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 var test = require('test-kit').tape()
-var typobj = require('.')
+var obj2type = require('.')
 
 function err (msg) { throw Error(msg) }
 
@@ -54,10 +54,10 @@ test('obj2typ - basic', function (t) {
             [ { a: 'int', b: {x: 'string', y: ['int'] } },                  { a: 'int', b: { x: 'str', y: ['int'] } } ],
         ],
         function (obj) {
-            var info = typobj.obj2typ(obj)
+            var info = obj2type(obj)
             Object.keys(info.defined_types).length === 0 || err('defined_types should be empty')
             Object.keys(info.unresolved).length === 0 || err('unresolved should be empty')
-            return info.root.obj({name_depth:0})
+            return info.root.to_obj({name_depth:0})
         }
     )
 })
@@ -70,10 +70,10 @@ test('obj2typ - opt', function (t) {
             [ { $hash: 5, $arr: ['n'] },     {custom_props: {$hash:'hash'}},   { $hash: 5, $arr: ['num'] } ],
         ],
         function (obj, opt) {
-            var info = typobj.obj2typ(obj, opt)
+            var info = obj2type(obj, opt)
             Object.keys(info.defined_types).length === 0 || err('defined_types should be empty')
             Object.keys(info.unresolved).length === 0 || err('unresolved should be empty')
-            return info.root.obj({name_depth:0})
+            return info.root.to_obj({name_depth:0})
         }
     )
 })
@@ -95,7 +95,7 @@ test('obj2typ - errors', function (t) {
         [ { $base: 'obj', $array: ['int'], $multi: ['str','int'] }, null,     /mul cannot be set together with arr/ ],
         [ { $base: 'obj', $name: 'o', $tn: 'x', a: 'int'},          null,     /name 'o' is a base type name/ ],
         [ { $base: 'obj'},        {fresh_copy:false, link_children:true},     /cannot link_children in type tree if fresh_copy is false/ ],
-    ], typobj.obj2typ, {assert: 'throws'})
+    ], obj2type, {assert: 'throws'})
 })
 
 test('obj2type - named', function (t) {
@@ -155,9 +155,9 @@ test('obj2type - named', function (t) {
         ],
 
         function (obj) {
-            var info = typobj.obj2typ(obj)
+            var info = obj2type(obj)
             return {
-                root: info.root.obj(),
+                root: info.root.to_obj(),
                 names: Object.keys(info.defined_types),
                 unresolved: Object.keys(info.unresolved)
             }
@@ -167,7 +167,7 @@ test('obj2type - named', function (t) {
 
 test('obj2typ - copy', function (t) {
     var tobj = {a: 's', x:['i'], b: ['s'], c: {$mul: ['i', 's']}}
-    var typ1 = typobj.obj2typ(tobj, {fresh_copy: false}).root
+    var typ1 = obj2type(tobj, {fresh_copy: false}).root
     t.same(typ1.fields.a.name, 'str')
     t.same(typ1.fields.b.arr[0].name, 'str')
     t.equal(typ1.fields.a, typ1.fields.b.arr[0])
@@ -175,7 +175,7 @@ test('obj2typ - copy', function (t) {
     t.same(typ1.fields.c.mul[1].name, 'str')
     t.equal(typ1.fields.a, typ1.fields.c.mul[1])
 
-    var typ2 = typobj.obj2typ(tobj).root
+    var typ2 = obj2type(tobj).root
     t.same(typ2.fields.a.name, 'str')
     t.same(typ2.fields.b.arr[0].name, 'str')
     t.not(typ2.fields.a, typ2.fields.b.arr[0])
@@ -198,10 +198,10 @@ test ('obj2typ invisible multi-type', function (t) {
             [ [ { a: { $multi: ['i'] } } ],                                     [ { a: 'int' } ] ],
         ],
         function (obj) {
-            var info = typobj.obj2typ(obj)
+            var info = obj2type(obj)
             Object.keys(info.defined_types).length === 0 || err('defined_types should be empty')
             Object.keys(info.unresolved).length === 0 || err('unresolved should be empty')
-            return info.root.obj({name_depth:0})
+            return info.root.to_obj({name_depth:0})
         }
     )
 })
@@ -234,9 +234,9 @@ test('obj2typ - example', function (t) {
             ],
         ],
         function (obj) {
-            var info = typobj.obj2typ(obj)
+            var info = obj2type(obj)
             return {
-                root: info.root.obj(),
+                root: info.root.to_obj(),
                 names: Object.keys(info.defined_types),
                 unresolved: Object.keys(info.unresolved)
             }

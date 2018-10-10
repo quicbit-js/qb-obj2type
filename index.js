@@ -1,6 +1,6 @@
 // Software License Agreement (ISC License)
 //
-// Copyright (c) 2017, Matthew Voss
+// Copyright (c) 2017-2018, Matthew Voss
 //
 // Permission to use, copy, modify, and/or distribute this software for
 // any purpose with or without fee is hereby granted, provided that the
@@ -223,7 +223,7 @@ function _arr2props (arr, opt, info) {
 //
 //      lookupfn        plug in your own type lookup function with same signature as qb1-type-base lookup (name, opt)
 //
-function obj2typ (obj, opt) {
+function obj2type (obj, opt) {
     opt = opt || {}
     var copy = opt.fresh_copy == null || opt.fresh_copy
     var link = opt.link_children == null ? copy : opt.link_children         // turn of linking if fresh_copy is false
@@ -237,6 +237,4 @@ function obj2typ (obj, opt) {
 
 function err (msg) { throw Error(msg) }
 
-module.exports = {
-    obj2typ: obj2typ,
-}
+module.exports = obj2type

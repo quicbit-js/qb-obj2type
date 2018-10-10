@@ -1,3 +1,7 @@
-# qb1-type-obj
+# qb1-obj2type
 
-Functions for converting qb type objects to and from generic objects/arrays.
+Functions for creating qb1 type objects from generic objects, strings, and arrays.
+
+# install
+
+    npm install qb1-obj2type
