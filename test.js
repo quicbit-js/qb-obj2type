@@ -33,14 +33,14 @@ test('obj2typ - basic', function (t) {
             [ { $base: 'str' },                                             { $base: 'str' } ],
             [ { $base: 'string' },                                          { $base: 'str' } ],
             [ [],                                                           [] ],
-            [ { $base: 'array'},                                            ['*'] ],        // functionally equivalent to base [], but a custom copy
-            [ { $a: ['*']},                                                 ['*'] ],        // functionally equivalent to base [], but a custom copy
+            [ { $base: 'array'},                                            ['any'] ],        // functionally equivalent to base [], but a custom copy
+            [ { $a: ['*']},                                                 ['any'] ],        // functionally equivalent to base [], but a custom copy
             [ [ 'i' ],                                                      [ 'int' ] ],
             // not multi-type - (which is not a concrete type)
-            [ ['*','N','X','a','b','d','f','i','n','o','s','t','x'],        [ '*', 'nul', 'blb', [], 'boo', 'dec', 'flt', 'int', 'num', {}, 'str', 'typ', 'byt' ] ],
+            [ ['*','N','X','a','b','d','f','i','n','o','s','t','x'],        [ 'any', 'nul', 'blb', [], 'boo', 'dec', 'flt', 'int', 'num', {}, 'str', 'typ', 'byt' ] ],
             [ {},                                                           {} ],
-            [ { $base: 'object' },                                          {'*':'*'} ],        // functionally equivalent to plain object {}, but a custom copy
-            [ { $base: 'obj', '*':'*' },                                    {'*':'*'} ],        // functionally equivalent to plain object {}, but a custom copy
+            [ { $base: 'object' },                                          {'*':'any'} ],        // functionally equivalent to plain object {}, but a custom copy
+            [ { $base: 'obj', '*':'*' },                                    {'*':'any'} ],        // functionally equivalent to plain object {}, but a custom copy
             [ { $base: 'o', id: 'n' },                                      { id: 'num' } ],
             [ { $base: 'integer' },                                         { $base: 'int' } ],
             [ { id: 'number' },                                             { id: 'num' } ],
@@ -157,7 +157,7 @@ test('obj2type - named', function (t) {
         function (obj) {
             var info = obj2type(obj)
             return {
-                root: info.root.to_obj(),
+                root: info.root.to_obj({name_depth: 1}),
                 names: Object.keys(info.defined_types),
                 unresolved: Object.keys(info.unresolved)
             }

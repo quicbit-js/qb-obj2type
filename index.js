@@ -228,7 +228,9 @@ function obj2type (obj, opt) {
     var copy = opt.fresh_copy == null || opt.fresh_copy
     var link = opt.link_children == null ? copy : opt.link_children         // turn of linking if fresh_copy is false
     copy || !link || err('cannot link_children in type tree if fresh_copy is false')
-    opt.createfn = opt.createfn || function (p) { return tbase.create(p, {link_children: link, custom_props: opt.custom_props}) }
+    opt.createfn = opt.createfn || function (p) {
+        return tbase.create(p, {link_children: link, custom_props: opt.custom_props, allow_unresolved: true })
+    }
     opt.lookupfn = opt.lookupfn || function (n) { return tbase.lookup(n, ( copy ? {create_opt: {link_children: link}} : null )) }
     var info = { path: [], defined_types: {},  unresolved: {} }
     var root = _any2typ(null, obj, opt, info )
