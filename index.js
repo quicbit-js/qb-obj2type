@@ -17,8 +17,8 @@
 var tbase = require('qb1-type-base')
 var qbobj = require('qb-obj')
 
-var BASE_TYPES_BY_NAME = tbase.types().reduce(function (m,t) { m[t.name] = m[t.tinyname] = m[t.fullname] = t; return m }, {})
-var PROPS_BY_NAME = tbase.props().reduce(function (m,p) { m[p.name] = m[p.tinyname] = m[p.fullname] = p; return m }, {})
+var TYPES_BY_NAME = tbase.types_by_all_names()
+var PROPS_BY_NAME = tbase.props_by_all_names()
 
 // return a map of ($-prefixed) prop names to prop.name
 // $s -> stip,          $stip -> stip,         $stipulations -> stip, ...
@@ -81,15 +81,15 @@ function _any2typ(k, v, opt, info) {
                         ret = _typval2typ(props, opt, info)
                     } else {
                         // only now can we default the base to 'obj' (base value was checked if set in _normalize_props, above)
-                        var base = BASE_TYPES_BY_NAME[props.base || 'obj']
+                        var base = TYPES_BY_NAME[props.base || 'obj']
                         props.base = base.name
                         if (props.base === 'mul' && props.mul.length === 1) {
-                            // skip multi-type for single values
+                            // convert single multi-type to single type
                             ret = _any2typ(k, props.mul[0], opt, info)
                         } else {
                             props = _process_child_types (props, opt, info)
                         }
-                        check_base_props(props, BASE_TYPES_BY_NAME[props.base], info)
+                        check_base_props(props, TYPES_BY_NAME[props.base], info)
                     }
                 }
             }
@@ -101,10 +101,12 @@ function _any2typ(k, v, opt, info) {
             }
             if (k !== null) { info.path.pop() }
             break
+
         case 'string':
-            !{'m':1,'mul':1,'multi':1}[v] || err('multi type "' + v + '" is not a stand-alone type')
             ret = opt.lookupfn(v)
-            if (ret == null) {
+            if (ret) {
+                ret.name !== 'mul' || err('multi type "' + v + '" is not a stand-alone type')
+            } else {
                 info.unresolved[v] = 1
                 ret = v                     // leave as string for a second pass where we have all the types defined
             }
@@ -120,7 +122,7 @@ function check_base_props (tprops, base, info) {
     ['name', 'fullname', 'tinyname'].forEach(function (nameprop) {
         var name = tprops[nameprop]
         if (name) {
-            !BASE_TYPES_BY_NAME[name] || errp("name '" + name + "' is a base type name, it cannot be used for " + nameprop, info.path, nameprop )
+            !TYPES_BY_NAME[name] || errp("name '" + name + "' is a base type name, it cannot be used for " + nameprop, info.path, nameprop )
         }
     })
     // need this check when we have stipulations
@@ -184,7 +186,7 @@ function _normalize_props (obj, opt, info) {
 
     if (tprops.base) {
         // normalize base (before comparing with base_exclusive)
-        var base = BASE_TYPES_BY_NAME[tprops.base] || errp('unknown base type: ' + tprops.base, info.path)
+        var base = TYPES_BY_NAME[tprops.base] || errp('unknown base type: ' + tprops.base, info.path)
         tprops.base = base.name
     }
 

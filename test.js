@@ -66,8 +66,8 @@ test('obj2typ - opt', function (t) {
     t.table_assert(
         [
             [ 'obj',                        'opt',                              'exp' ],
-            [ { $hash: 5, a: 's' },     {custom_props: {$hash:'hash'}},   { $hash: 5, a: 'str' } ],
-            [ { $hash: 5, $arr: ['n'] },     {custom_props: {$hash:'hash'}},   { $hash: 5, $arr: ['num'] } ],
+            [ { $hash: 5, a: 's' },         {custom_props: {$hash:'hash'}},     { $hash: 5, a: 'str' } ],
+            [ { $hash: 5, $arr: ['n'] },    {custom_props: {$hash:'hash'}},     { $hash: 5, $arr: ['num'] } ],
         ],
         function (obj, opt) {
             var info = obj2type(obj, opt)
@@ -188,14 +188,14 @@ test('obj2typ - copy', function (t) {
 
 test ('obj2typ invisible multi-type', function (t) {
     // to support dynamically adding to multi-type, we gracefully handle multi-types with only a single item...
-    // by showing them as that item only (no multi-type).
+    // by converting to single type.
     t.table_assert(
         [
             [ 'obj',                                                            'exp' ],
             [ { $multi: ['i'] },                                                'int' ],
             [ { $multi: [['i']] },                                              [ 'int' ] ],
-            [ [ { $multi: ['i'] } ],                                            [ 'int' ] ],
-            [ [ { a: { $multi: ['i'] } } ],                                     [ { a: 'int' } ] ],
+            [ [ { $mul: ['i'] } ],                                              [ 'int' ] ],
+            [ [ { a: { $m: ['i'] } } ],                                         [ { a: 'int' } ] ],
         ],
         function (obj) {
             var info = obj2type(obj)
